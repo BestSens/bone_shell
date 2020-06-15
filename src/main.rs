@@ -1,7 +1,29 @@
-use std::env;
 use std::io::prelude::*;
 use std::net::TcpStream;
-use sha2::{Sha512, Digest};
+
+extern crate crypto;
+use crypto::digest::Digest;
+use crypto::sha2::Sha512;
+
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+#[structopt(name = "basic")]
+struct Opt {
+	#[structopt(short, long, default_value = "localhost")]
+	connect: String,
+
+	#[structopt(short, long, default_value = "6450")]
+	port: String,
+
+	#[structopt(long)]
+	username: Option<String>,
+
+	#[structopt(long)]
+	password: Option<String>,
+
+	command: String
+}
 
 struct Bone {
 	ip: String,
@@ -17,15 +39,21 @@ impl Bone {
 		connect_str
 	}
 
-	// fn get_hashed_password(password: &str) {
-	// 	let mut hasher = Sha512::new();
+	fn get_sha512_string(input_str: &str) -> String {
+		let mut hasher = Sha512::new();
 
-	// 	hasher.update(password);
+		hasher.input_str(input_str);
+		hasher.result_str()
+	}
 
-	// 	let result = hasher.finalize();
+	fn get_signed_token(password: &str, token: &str) -> String {
+		let password_hashed = Bone::get_sha512_string(&password);
 
-	// 	result
-	// }
+		let mut concat = String::from(&password_hashed);
+		concat.push_str(&token);
+
+		Bone::get_sha512_string(&concat)
+	}
 
 	pub fn new(ip: &str, port: &str) -> Bone {
 		Bone {
@@ -67,23 +95,56 @@ impl Bone {
 		}
 	}
 
-	pub fn login(&mut self, username: &str, password: &str) {
-		let token_response = self.send_command("{\"command\":\"request_token\"}");
-		let token = &token_response["payload"]["token"];
+	pub fn login(&mut self, username: &str, password: &str) -> Result<String, String> {
+		let command = json::object!{
+			"command" => "request_token"
+		};
 
-		println!("token: {}", token);
+		let response = self.send_command(&command.dump());
+		let token = &response["payload"]["token"].to_string();
+		let signed_token = Bone::get_signed_token(&password, &token);
+
+		let command = json::object!{
+			"command" => "auth",
+			"payload" => json::object!{
+				"signed_token" => signed_token,
+				"username" => username
+			}
+		};
+
+		let response = self.send_command(&command.dump());
+
+		let err = response["payload"]["error"].to_string();
+
+		if err != "null" {
+			return Err(err)
+		}
+
+		Ok(response["payload"]["username"].to_string())
 	}
 }
 
 fn main() -> std::io::Result<()> {
-	let args: Vec<String> = env::args().collect();
-	let ip = &args[1];
-	let port = &args[2];
-	let command = &args[3];
+	let opt = Opt::from_args();
+
+	let ip = opt.connect;
+	let port = opt.port;
+	let command = opt.command;
 
 	let mut bone1 = Bone::new(&ip, &port);
 	bone1.connect();
-	bone1.login("admin", "1102snestseb");
+	
+	if let Some(username) = &opt.username {
+		if let Some(password) = &opt.password {
+			let result = bone1.login(username, password);
+			match result {
+				Err(msg) => panic!("Error while logging in: {}", msg),
+				_ => ()
+			}
+		} else {
+			panic!("--username supplied without --password");
+		}
+	}
 
 	let parsed = bone1.send_command(&command);
 	let pretty_response = json::stringify_pretty(parsed, 4);
