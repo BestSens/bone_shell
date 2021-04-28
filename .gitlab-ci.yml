@@ -1,4 +1,4 @@
-image: rust
+image: docker.bestsens.de/bone/rust-build-image:master
 
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
