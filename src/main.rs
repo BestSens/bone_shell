@@ -1,6 +1,7 @@
 use std::io::*;
 use structopt::StructOpt;
 use bone_api::Bone;
+use atty::Stream;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
@@ -45,6 +46,15 @@ fn main() -> std::io::Result<()> {
 
 	if let Some(command) = &opt.command {
 		// command mode
+		let parsed = bone1.send_command(&command);
+		let pretty_response = json::stringify_pretty(parsed, 4);
+
+		println!("{}", pretty_response);
+	} else if !atty::is(Stream::Stdin) {
+		// pipe mode
+		let mut command = String::new();
+		stdin().read_line(&mut command).unwrap();
+
 		let parsed = bone1.send_command(&command);
 		let pretty_response = json::stringify_pretty(parsed, 4);
 
