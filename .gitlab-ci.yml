@@ -1,0 +1,62 @@
+image: rust
+
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+    - build
+    - deploy
+
+.artifacts: &artifacts
+    expire_in: 4 weeks
+    name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}"
+    paths:
+        - bone_shell
+
+## Build ##############################################################################################################
+build:arm:
+    stage: build
+    artifacts:
+        <<: *artifacts
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_arm"
+    script:
+        - cargo build --release --target=arm-unknown-linux-gnueabihf
+        - cp arm-unknown-linux-gnueabihf/bone_shell ./bone_shell
+
+build:i686:
+    stage: build
+    artifacts:
+        <<: *artifacts
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_i686"
+    script:
+        - cargo build --release
+        - cp target/bone_shell ./bone_shell
+
+## Create persistent archives #########################################################################################
+.deploy: &deploy
+    stage: deploy
+    when: on_success
+    only:
+        - tags
+    variables:
+        GIT_STRATEGY: none
+    script:
+        - echo '1'
+
+deploy:arm:
+    <<: *deploy
+    artifacts:
+        <<: *artifacts
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_arm"
+        expire_in:
+    dependencies:
+        - build:arm
+
+deploy:i686:
+    <<: *deploy
+    artifacts:
+        <<: *artifacts
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_i686"
+        expire_in:
+    dependencies:
+        - build:i686
