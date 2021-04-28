@@ -62,10 +62,15 @@ impl Bone {
 			stream.read_exact(&mut buffer).unwrap();
 
 			let s = String::from_utf8(buffer.to_vec()).unwrap();
-			let respone_len = usize::from_str_radix(&s, 16).unwrap();
+			let response_len = usize::from_str_radix(&s, 16).unwrap();
 
-			let mut buffer = vec![0; respone_len];
-			stream.read(&mut buffer[..respone_len]).unwrap();
+			let mut buffer = vec![0; response_len];
+			let mut t = 0;
+
+			while t < response_len {
+				let size = stream.read(&mut buffer[t..]).unwrap();
+				t += size;
+			}
 
 			let response = String::from_utf8(buffer).unwrap();
 
