@@ -2,7 +2,7 @@ image: docker.bestsens.de/bone/rust-build-image:master
 
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
-    CARGO_HOME: $CI_PROJECT_DIR/.cargo
+    CARGO_HOME: ${CI_PROJECT_DIR}/.cargo
 
 stages:
     - build
@@ -26,10 +26,11 @@ build:arm:
         <<: *artifacts
         name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_arm"
     before_script:
-      - cp ~/.cargo/config ./cargo/config
+        - mkdir -p ${CI_PROJECT_DIR}/.cargo
+        - cp -r /usr/local/cargo/config ${CI_PROJECT_DIR}/.cargo/config
     script:
         - cargo build --release --target=arm-unknown-linux-gnueabihf
-        - cp arm-unknown-linux-gnueabihf/bone_shell ./bone_shell
+        - cp target/arm-unknown-linux-gnueabihf/release/bone_shell ./bone_shell
 
 build:i686:
     stage: build
@@ -41,10 +42,11 @@ build:i686:
         <<: *artifacts
         name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_i686"
     before_script:
-      - cp ~/.cargo/config ./cargo/config
+        - mkdir -p ${CI_PROJECT_DIR}/.cargo
+        - cp -r /usr/local/cargo/config ${CI_PROJECT_DIR}/.cargo/config
     script:
         - cargo build --release
-        - cp target/bone_shell ./bone_shell
+        - cp target/release/bone_shell ./bone_shell
 
 ## Create persistent archives #########################################################################################
 .deploy: &deploy
