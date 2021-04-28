@@ -18,10 +18,10 @@ stages:
 build:arm:
     stage: build
     cache:
-      key: arm
-      paths:
-        - .cargo
-        - target
+        key: arm
+        paths:
+            - .cargo
+            - target
     artifacts:
         <<: *artifacts
         name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_arm"
@@ -35,9 +35,9 @@ build:arm:
 build:i686:
     stage: build
     cache:
-      paths:
-        - .cargo
-        - target
+        paths:
+            - .cargo
+            - target
     artifacts:
         <<: *artifacts
         name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_i686"
@@ -47,6 +47,22 @@ build:i686:
     script:
         - cargo build --release
         - cp target/release/bone_shell ./bone_shell
+
+build:win:
+    stage: build
+    cache:
+        key: win
+        paths:
+            - .cargo
+            - target
+    artifacts:
+        expire_in: 4 weeks
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_win"
+        paths:
+            - bone_shell.exe
+    script:
+        - cargo build --release --target=x86_64-pc-windows-gnu
+        - cp target/x86_64-pc-windows-gnu/release/bone_shell.exe ./bone_shell.exe
 
 ## Create persistent archives #########################################################################################
 .deploy: &deploy
