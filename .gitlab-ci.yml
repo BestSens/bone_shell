@@ -2,6 +2,7 @@ image: docker.bestsens.de/bone/rust-build-image:master
 
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
+    CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
 stages:
     - build
@@ -16,18 +17,31 @@ stages:
 ## Build ##############################################################################################################
 build:arm:
     stage: build
+    cache:
+      key: arm
+      paths:
+        - .cargo
+        - target
     artifacts:
         <<: *artifacts
         name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_arm"
+    before_script:
+      - cp ~/.cargo/config ./cargo/config
     script:
         - cargo build --release --target=arm-unknown-linux-gnueabihf
         - cp arm-unknown-linux-gnueabihf/bone_shell ./bone_shell
 
 build:i686:
     stage: build
+    cache:
+      paths:
+        - .cargo
+        - target
     artifacts:
         <<: *artifacts
         name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_i686"
+    before_script:
+      - cp ~/.cargo/config ./cargo/config
     script:
         - cargo build --release
         - cp target/bone_shell ./bone_shell
