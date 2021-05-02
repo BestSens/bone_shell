@@ -175,13 +175,26 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
 		}
 
+
+		let cycle_time = {
+			let parsed = bone.send_command(&json::object!{"command" => "cycle_time"});
+
+			match parsed {
+				Ok(n) => match n["payload"]["cycle_time"].as_number() {
+					Some(n) => f32::from(n) * 1E-6,
+					_ => 2E-4,
+				},
+				Err(_err) => 2E-4,
+			}
+		};
+
 		for v in &data.1 {
 			let mean = statistical::mean(&v.1[..]);
 			let stdev = statistical::standard_deviation(&v.1[..], None);
 
 			println!("{} mean = {}, stdev = {}", v.0, mean, stdev);
-			Chart::new(term_size.0.into(), term_size.1.into(), 0., data.1[0].1.len() as f32 * 2E-4)
-				.lineplot(&Shape::Lines(create_xy(&v.1, 2E-4).as_slice()))
+			Chart::new(term_size.0.into(), term_size.1.into(), 0., data.1[0].1.len() as f32 * cycle_time)
+				.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
 				.nice();
 		}
 	} else if command["command"] == "dv_data" {
