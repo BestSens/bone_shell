@@ -123,7 +123,7 @@ impl Bone {
 					filter.push(a.to_string());
 				}
 			} else {
-				filter = vec!(String::from("saw"), String::from("int2"), String::from("coe"), String::from("int1"));
+				filter = vec!(String::from("saw"), String::from("int2"), String::from("coe"), String::from("int"));
 			}
 
 			if !self.enable_msgpack {
