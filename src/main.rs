@@ -27,6 +27,9 @@ pub struct Opt {
 	#[structopt(long)]
 	password: Option<String>,
 
+	#[structopt(long, default_value = "2")]
+	api: u32,
+
 	command: Option<String>
 }
 
@@ -59,7 +62,9 @@ fn main() -> std::io::Result<()> {
 	if let Some(command) = &opt.command {
 		// command mode
 		let start = Instant::now();
-		let parsed = bone1.send_command(&json::parse(&command).unwrap()).unwrap();
+		let mut command = json::parse(&command).unwrap();
+		command["api"] = opt.api.into();
+		let parsed = bone1.send_command(&command).unwrap();
 		let duration = start.elapsed().as_millis();
 		let pretty_response = json::stringify_pretty(parsed, 4);
 
@@ -74,7 +79,9 @@ fn main() -> std::io::Result<()> {
 		stdin().read_line(&mut command).unwrap();
 
 		let start = Instant::now();
-		let parsed = bone1.send_command(&json::parse(&command).unwrap()).unwrap();
+		let mut command = json::parse(&command).unwrap();
+		command["api"] = opt.api.into();
+		let parsed = bone1.send_command(&command).unwrap();
 		let duration = start.elapsed().as_millis();
 		let pretty_response = json::stringify_pretty(parsed, 4);
 
@@ -137,7 +144,8 @@ fn main() -> std::io::Result<()> {
 			let result = json::parse(&command);
 			match result {
 				Err(msg) => eprintln!("invalid input: {}", msg),
-				Ok(command) => {
+				Ok(mut command) => {
+					command["api"] = opt.api.into();
 					let start = Instant::now();
 					let parsed = match bone1.send_command(&command) {
 						Ok(n) => n,
