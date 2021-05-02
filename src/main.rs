@@ -4,6 +4,8 @@ use bone_api::Bone;
 use atty::Stream;
 use std::time::Instant;
 
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 pub struct Opt {
@@ -62,7 +64,7 @@ fn main() -> std::io::Result<()> {
 		let pretty_response = json::stringify_pretty(parsed, 4);
 
 		if opt.response_time {
-			println!("# command took {} ms", duration);
+			writeln_dimmed(&format!("took {} ms", duration))?;
 		}
 
 		println!("{}", pretty_response);
@@ -77,7 +79,7 @@ fn main() -> std::io::Result<()> {
 		let pretty_response = json::stringify_pretty(parsed, 4);
 
 		if opt.response_time {
-			println!("# command took {} ms", duration);
+			writeln_dimmed(&format!("took {} ms", duration))?;
 		}
 
 		println!("{}", pretty_response);
@@ -105,11 +107,31 @@ fn main() -> std::io::Result<()> {
 			let mut command = String::new();
 			stdin().read_line(&mut command).unwrap();
 
-			let tmp_len = command.trim_end().len();
-			command.truncate(tmp_len);
+			if let Some(first_char) = command.chars().next() {
+				if first_char != '{' && first_char != '[' {
+					let tmp_len = command.trim_end().len();
+					command.truncate(tmp_len);
 
-			if command == "q" || command == "quit" || command == "exit" {
-				return Ok(())
+					if command == "q" || command == "quit" || command == "exit" {
+						return Ok(())
+					}
+
+					let chunks: Vec<&str> = command.split_whitespace().collect();
+
+					if chunks.len() == 1 {
+						command = json::object!{"command": chunks[0].clone()}.dump();
+					} else if chunks.len() == 2 {
+						let payload = match json::parse(&chunks[1]) {
+							Ok(n) => n,
+							Err(err) => { eprintln!("error parsing payload: {}", err); continue; },
+						};
+						command = json::object!{"command": chunks[0].clone(), "payload": payload}.dump();
+					} else {
+						continue;
+					}
+				}
+			} else {
+				continue;
 			}
 
 			let result = json::parse(&command);
@@ -119,13 +141,15 @@ fn main() -> std::io::Result<()> {
 					let start = Instant::now();
 					let parsed = match bone1.send_command(&command) {
 						Ok(n) => n,
-						Err(err) => {eprintln!("Error: {}", err); continue;},
+						Err(err) => { eprintln!("Error: {}", err); continue; },
 					};
 					let duration = start.elapsed().as_millis();
 					let pretty_response = json::stringify_pretty(parsed, 4);
+					
+					writeln_dimmed(&command.dump())?;
 
 					if opt.response_time {
-						println!("# command took {} ms", duration);
+						writeln_dimmed(&format!("took {} ms", duration))?;
 					}
 
 					println!("{}", pretty_response);
@@ -134,5 +158,16 @@ fn main() -> std::io::Result<()> {
 		}
 	}
 
+	Ok(())
+}
+
+fn writeln_dimmed(output: &str) -> Result<()> {
+	let mut stdout = StandardStream::stdout(ColorChoice::Always);
+	stdout.set_color(ColorSpec::new().set_fg(Some(Color::Rgb(150, 150, 150))).set_italic(true))?;
+	match writeln!(&mut stdout, "# {}", output) {
+		Ok(()) => (),
+		Err(_err) => stdout.set_color(&ColorSpec::new())?,
+	};
+	stdout.set_color(&ColorSpec::new())?;
 	Ok(())
 }
