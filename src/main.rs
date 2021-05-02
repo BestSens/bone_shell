@@ -142,24 +142,47 @@ fn main() -> std::io::Result<()> {
 
 fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, response_time: bool) {
 	let start = Instant::now();
-	let parsed = bone.send_command(&command).unwrap();
-	let duration = start.elapsed().as_millis();
+	if command["command"] == "sync" {
+		let data = bone.send_raw_command(&command).unwrap();
+		let duration = start.elapsed().as_millis();
 
-	let pretty_response;
+		writeln_dimmed(&command.dump()).unwrap();
 
-	if pretty {
-		pretty_response = json::stringify_pretty(parsed, 4);
+		if response_time {
+			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
+		}
+
+		for v in data {
+			let sum = v.iter().sum::<f32>() as f32;
+			let count = v.len();
+
+			let mean = match count {
+				positive if positive > 0 => Some(sum  / count as f32),
+				_ => None
+			};
+
+			println!("mean {}", mean.unwrap());
+		}
 	} else {
-		pretty_response = json::stringify(parsed);
-	}
-	
-	writeln_dimmed(&command.dump()).unwrap();
+		let parsed = bone.send_command(&command).unwrap();
+		let duration = start.elapsed().as_millis();
 
-	if response_time {
-		writeln_dimmed(&format!("took {} ms", duration)).unwrap();
-	}
+		let pretty_response;
 
-	println!("{}", pretty_response);
+		if pretty {
+			pretty_response = json::stringify_pretty(parsed, 4);
+		} else {
+			pretty_response = json::stringify(parsed);
+		}
+		
+		writeln_dimmed(&command.dump()).unwrap();
+
+		if response_time {
+			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
+		}
+
+		println!("{}", pretty_response);
+	}
 }
 
 fn writeln_dimmed(output: &str) -> Result<()> {
