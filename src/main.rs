@@ -108,18 +108,18 @@ fn main() -> std::io::Result<()> {
 						return Ok(())
 					}
 
-					let chunks: Vec<&str> = command.split_whitespace().collect();
-
-					if chunks.len() == 1 {
-						command = json::object!{"command": chunks[0].clone()}.dump();
-					} else if chunks.len() == 2 {
-						let payload = match json::parse(&chunks[1]) {
-							Ok(n) => n,
-							Err(err) => { eprintln!("error parsing payload: {}", err); continue; },
-						};
-						command = json::object!{"command": chunks[0].clone(), "payload": payload}.dump();
-					} else {
-						continue;
+					match command.find(" ") {
+						Some(n) => {
+							let s = command.split_at(n);
+							let payload = match json::parse(s.1) {
+								Ok(n) => n,
+								Err(err) => { eprintln!("error parsing payload: {}", err); continue; },
+							};
+							command = json::object!{"command": s.0.clone(), "payload": payload}.dump();
+						},
+						None => { 
+							command = json::object!{"command": command.clone()}.dump(); 
+						},
 					}
 				}
 			} else {
@@ -152,16 +152,16 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
 		}
 
-		for v in data {
-			let sum = v.iter().sum::<f32>() as f32;
-			let count = v.len();
+		for v in data.1 {
+			let sum = v.1.iter().sum::<f32>() as f32;
+			let count = v.1.len();
 
 			let mean = match count {
 				positive if positive > 0 => Some(sum  / count as f32),
 				_ => None
 			};
 
-			println!("mean {}", mean.unwrap());
+			println!("mean {} = {}", v.0, mean.unwrap());
 		}
 	} else {
 		let parsed = bone.send_command(&command).unwrap();

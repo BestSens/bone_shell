@@ -42,12 +42,15 @@ impl Bone {
 		Bone::get_sha512_string(&concat)
 	}
 
-	fn calc_saw(buffer: &Vec<u8>, output_vec: &mut Vec<Vec<f32>>) {
+	fn calc_saw(buffer: &Vec<u8>, output_vec: &mut Vec<(String, Vec<f32>)>) {
 		let mut rt_buf: Vec<f32> = Vec::new();
 		let mut amp_buf: Vec<f32> = Vec::new();
 
 		for i in (0..buffer.len()).step_by(4) {
-			let data: u32 = buffer[i+3] as u32 + ((buffer[i+2] as u32) << 8) + ((buffer[i+1] as u32) << 16) + ((buffer[i] as u32) << 24);
+			let data: u32 = buffer[i+3] as u32 + 
+							((buffer[i+2] as u32) << 8) +
+							((buffer[i+1] as u32) << 16) +
+							((buffer[i] as u32) << 24);
 
 			let mut runtime: f32 = ((data & 0xfffff000) >> 12) as f32;
 			runtime /= 521.0;
@@ -64,24 +67,24 @@ impl Bone {
 			amp_buf.push(amplitude);
 		}
 
-		output_vec.push(rt_buf);
-		output_vec.push(amp_buf);
+		output_vec.push(("rt".to_string(), rt_buf));
+		output_vec.push(("amp".to_string(), amp_buf));
 	}
 
-	fn calc_f32(buffer: &Vec<u8>, output_vec: &mut Vec<Vec<f32>>) {
+	fn calc_f32(buffer: &Vec<u8>, output_vec: &mut Vec<(String, Vec<f32>)>, name: &str) {
 		let mut temp: Vec<f32> = Vec::new();
 
 		for i in (0..buffer.len()).step_by(4) {
 			let data: u32 = buffer[i+3] as u32 + ((buffer[i+2] as u32) << 8) + ((buffer[i+1] as u32) << 16) + ((buffer[i] as u32) << 24);
 
 			let float: f32 = unsafe {
-				std::mem::transmute::<u32, f32>(data)
+				std::mem::transmute(data)
 			};
 
 			temp.push(float);
 		}
 
-		output_vec.push(temp);
+		output_vec.push((name.to_string(), temp));
 	}
 
 	pub fn new(ip: &str, port: &str, enable_msgpack: bool) -> Bone {
@@ -97,7 +100,7 @@ impl Bone {
 		self.stream = Some(TcpStream::connect(&self.get_connection_string()).unwrap());
 	}
 
-	pub fn send_raw_command(&mut self, command: &json::JsonValue) -> Result<Vec<Vec<f32>>, String> {
+	pub fn send_raw_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
 		if let Some(ref mut stream) = self.stream {
 			let send_data;
 
@@ -136,7 +139,7 @@ impl Bone {
 			let s = String::from_utf8(buffer.to_vec()).unwrap();
 			let response_len = usize::from_str_radix(&s, 16).unwrap();
 
-			let mut ret_vect: Vec<Vec<f32>> = Vec::new();
+			let mut ret_vect = Vec::new();
 
 			let mut last_position = [0; 4];
 			stream.read_exact(&mut last_position).unwrap();
@@ -145,8 +148,6 @@ impl Bone {
 									((last_position[2] as i32) <<  8) + 
 									((last_position[1] as i32) << 16) + 
 									((last_position[0] as i32) << 24); 
-
-			println!("last_position: {}", last_position);
 
 			let response_len = response_len - 4;
 
@@ -164,13 +165,13 @@ impl Bone {
 			for current in filter {
 				match &current[..] {
 					"saw" => Bone::calc_saw(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect),
-					_ => Bone::calc_f32(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect),
+					_ => Bone::calc_f32(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect, &current),
 				}
 
 				pos += split_val;
 			}
 
-			Ok(ret_vect)
+			Ok((last_position, ret_vect))
 		} else {
 			panic!("Not connected");
 		}
