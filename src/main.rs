@@ -2,6 +2,7 @@ use std::io::*;
 use structopt::StructOpt;
 use bone_api::Bone;
 use atty::Stream;
+use std::time::Instant;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
@@ -12,8 +13,11 @@ pub struct Opt {
 	#[structopt(short, long, default_value = "6450")]
 	port: String,
 
-	#[structopt(short = "m", long)]
+	#[structopt(short, long)]
 	msgpack: bool,
+
+	#[structopt(short, long)]
+	response_time: bool,
 
 	#[structopt(long)]
 	username: Option<String>,
@@ -52,8 +56,14 @@ fn main() -> std::io::Result<()> {
 
 	if let Some(command) = &opt.command {
 		// command mode
-		let parsed = bone1.send_command(&json::parse(&command).unwrap());
+		let start = Instant::now();
+		let parsed = bone1.send_command(&json::parse(&command).unwrap()).unwrap();
+		let duration = start.elapsed().as_millis();
 		let pretty_response = json::stringify_pretty(parsed, 4);
+
+		if opt.response_time {
+			println!("# command took {} ms", duration);
+		}
 
 		println!("{}", pretty_response);
 	} else if !atty::is(Stream::Stdin) {
@@ -61,8 +71,14 @@ fn main() -> std::io::Result<()> {
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
 
-		let parsed = bone1.send_command(&json::parse(&command).unwrap());
+		let start = Instant::now();
+		let parsed = bone1.send_command(&json::parse(&command).unwrap()).unwrap();
+		let duration = start.elapsed().as_millis();
 		let pretty_response = json::stringify_pretty(parsed, 4);
+
+		if opt.response_time {
+			println!("# command took {} ms", duration);
+		}
 
 		println!("{}", pretty_response);
 	} else {
@@ -100,12 +116,17 @@ fn main() -> std::io::Result<()> {
 			match result {
 				Err(msg) => eprintln!("invalid input: {}", msg),
 				Ok(command) => {
-					let parsed = bone1.send_command(&command);
+					let start = Instant::now();
 					let parsed = match bone1.send_command(&command) {
 						Ok(n) => n,
 						Err(err) => {eprintln!("Error: {}", err); continue;},
 					};
+					let duration = start.elapsed().as_millis();
 					let pretty_response = json::stringify_pretty(parsed, 4);
+
+					if opt.response_time {
+						println!("# command took {} ms", duration);
+					}
 
 					println!("{}", pretty_response);
 				}
