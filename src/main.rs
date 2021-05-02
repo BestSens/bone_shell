@@ -64,49 +64,17 @@ fn main() -> std::io::Result<()> {
 
 	if let Some(command) = &opt.command {
 		// command mode
-		let start = Instant::now();
 		let mut command = json::parse(&command).unwrap();
 		command["api"] = opt.api.into();
-		let parsed = bone1.send_command(&command).unwrap();
-		let duration = start.elapsed().as_millis();
-		
-		let pretty_response;
-
-		if opt.no_pretty {
-			pretty_response = json::stringify(parsed);
-		} else {
-			pretty_response = json::stringify_pretty(parsed, 4);
-		}
-
-		if opt.response_time {
-			writeln_dimmed(&format!("took {} ms", duration))?;
-		}
-
-		println!("{}", pretty_response);
+		command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 	} else if !atty::is(Stream::Stdin) {
 		// pipe mode
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
 
-		let start = Instant::now();
 		let mut command = json::parse(&command).unwrap();
 		command["api"] = opt.api.into();
-		let parsed = bone1.send_command(&command).unwrap();
-		let duration = start.elapsed().as_millis();
-
-		let pretty_response;
-
-		if opt.no_pretty {
-			pretty_response = json::stringify(parsed);
-		} else {
-			pretty_response = json::stringify_pretty(parsed, 4);
-		}
-
-		if opt.response_time {
-			writeln_dimmed(&format!("took {} ms", duration))?;
-		}
-
-		println!("{}", pretty_response);
+		command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 	} else {
 		// shell mode
 		let alias = &data["payload"]["alias"];
@@ -163,34 +131,35 @@ fn main() -> std::io::Result<()> {
 				Err(msg) => eprintln!("invalid input: {}", msg),
 				Ok(mut command) => {
 					command["api"] = opt.api.into();
-					let start = Instant::now();
-					let parsed = match bone1.send_command(&command) {
-						Ok(n) => n,
-						Err(err) => { eprintln!("Error: {}", err); continue; },
-					};
-					let duration = start.elapsed().as_millis();
-
-					let pretty_response;
-
-					if opt.no_pretty {
-						pretty_response = json::stringify(parsed);
-					} else {
-						pretty_response = json::stringify_pretty(parsed, 4);
-					}
-					
-					writeln_dimmed(&command.dump())?;
-
-					if opt.response_time {
-						writeln_dimmed(&format!("took {} ms", duration))?;
-					}
-
-					println!("{}", pretty_response);
+					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 				}
 			}
 		}
 	}
 
 	Ok(())
+}
+
+fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, response_time: bool) {
+	let start = Instant::now();
+	let parsed = bone.send_command(&command).unwrap();
+	let duration = start.elapsed().as_millis();
+
+	let pretty_response;
+
+	if pretty {
+		pretty_response = json::stringify_pretty(parsed, 4);
+	} else {
+		pretty_response = json::stringify(parsed);
+	}
+	
+	writeln_dimmed(&command.dump()).unwrap();
+
+	if response_time {
+		writeln_dimmed(&format!("took {} ms", duration)).unwrap();
+	}
+
+	println!("{}", pretty_response);
 }
 
 fn writeln_dimmed(output: &str) -> Result<()> {
