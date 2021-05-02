@@ -19,6 +19,9 @@ pub struct Opt {
 	msgpack: bool,
 
 	#[structopt(short, long)]
+	no_pretty: bool,
+
+	#[structopt(short, long)]
 	response_time: bool,
 
 	#[structopt(long)]
@@ -66,7 +69,14 @@ fn main() -> std::io::Result<()> {
 		command["api"] = opt.api.into();
 		let parsed = bone1.send_command(&command).unwrap();
 		let duration = start.elapsed().as_millis();
-		let pretty_response = json::stringify_pretty(parsed, 4);
+		
+		let pretty_response;
+
+		if opt.no_pretty {
+			pretty_response = json::stringify(parsed);
+		} else {
+			pretty_response = json::stringify_pretty(parsed, 4);
+		}
 
 		if opt.response_time {
 			writeln_dimmed(&format!("took {} ms", duration))?;
@@ -83,7 +93,14 @@ fn main() -> std::io::Result<()> {
 		command["api"] = opt.api.into();
 		let parsed = bone1.send_command(&command).unwrap();
 		let duration = start.elapsed().as_millis();
-		let pretty_response = json::stringify_pretty(parsed, 4);
+
+		let pretty_response;
+
+		if opt.no_pretty {
+			pretty_response = json::stringify(parsed);
+		} else {
+			pretty_response = json::stringify_pretty(parsed, 4);
+		}
 
 		if opt.response_time {
 			writeln_dimmed(&format!("took {} ms", duration))?;
@@ -152,7 +169,14 @@ fn main() -> std::io::Result<()> {
 						Err(err) => { eprintln!("Error: {}", err); continue; },
 					};
 					let duration = start.elapsed().as_millis();
-					let pretty_response = json::stringify_pretty(parsed, 4);
+
+					let pretty_response;
+
+					if opt.no_pretty {
+						pretty_response = json::stringify(parsed);
+					} else {
+						pretty_response = json::stringify_pretty(parsed, 4);
+					}
 					
 					writeln_dimmed(&command.dump())?;
 
