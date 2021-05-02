@@ -55,14 +55,17 @@ impl Bone {
 		self.stream = Some(TcpStream::connect(&self.get_connection_string()).unwrap());
 	}
 
-	pub fn send_command(&mut self, command: &json::JsonValue) -> json::JsonValue {
+	pub fn send_command(&mut self, command: &json::JsonValue) -> Result<json::JsonValue, String> {
 		if let Some(ref mut stream) = self.stream {
 			let send_data;
 			if !self.enable_msgpack {
 				let s = String::from(command.dump());
 				send_data = s.as_bytes().to_vec();
 			} else { 
-				let command: Value = serde_json::from_str(&command.dump()).unwrap();
+				let command: Value = match serde_json::from_str(&command.dump()) {
+					Ok(n) => n,
+					Err(err) => return Err(err.to_string()),
+				};
 				send_data = rmp_serde::to_vec(&command).unwrap();
 			}
 
@@ -90,11 +93,17 @@ impl Bone {
 
 			if !self.enable_msgpack {
 				let response = String::from_utf8(buffer).unwrap();
-				json::parse(&response).unwrap()
+				match json::parse(&response) {
+					Ok(n) => return Ok(n),
+					Err(err) => return Err(err.to_string()),
+				}
 			} else {
 				let value: rmpv::Value = rmp_serde::from_slice(&buffer[..]).unwrap();
 				let json = serde_json::to_string(&value).unwrap();
-				json::parse(&json).unwrap()
+				match json::parse(&json) {
+					Ok(n) => return Ok(n),
+					Err(err) => return Err(err.to_string()),
+				}
 			}
 		} else {
 			panic!("Not connected");
@@ -106,7 +115,7 @@ impl Bone {
 			"command" => "request_token"
 		};
 
-		let response = self.send_command(&command);
+		let response = self.send_command(&command)?;
 		let token = &response["payload"]["token"].to_string();
 		let signed_token = Bone::get_signed_token(&password, &token);
 
@@ -118,7 +127,7 @@ impl Bone {
 			}
 		};
 
-		let response = self.send_command(&command);
+		let response = self.send_command(&command)?;
 
 		let err = response["payload"]["error"].to_string();
 

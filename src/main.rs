@@ -45,7 +45,10 @@ fn main() -> std::io::Result<()> {
 		}
 	}
 
-	let data = bone1.send_command(&json::object!{"command" => "serial_number"});
+	let data = match bone1.send_command(&json::object!{"command" => "serial_number"}) {
+		Ok(n) => n,
+		Err(_err) => json::object!{"error" => "missing"},
+	};
 
 	if let Some(command) = &opt.command {
 		// command mode
@@ -86,11 +89,22 @@ fn main() -> std::io::Result<()> {
 			let mut command = String::new();
 			stdin().read_line(&mut command).unwrap();
 
+			let tmp_len = command.trim_end().len();
+			command.truncate(tmp_len);
+
+			if command == "q" || command == "quit" || command == "exit" {
+				return Ok(())
+			}
+
 			let result = json::parse(&command);
 			match result {
 				Err(msg) => eprintln!("invalid input: {}", msg),
 				Ok(command) => {
 					let parsed = bone1.send_command(&command);
+					let parsed = match bone1.send_command(&command) {
+						Ok(n) => n,
+						Err(err) => {eprintln!("Error: {}", err); continue;},
+					};
 					let pretty_response = json::stringify_pretty(parsed, 4);
 
 					println!("{}", pretty_response);
