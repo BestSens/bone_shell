@@ -12,6 +12,9 @@ pub struct Opt {
 	#[structopt(short, long, default_value = "6450")]
 	port: String,
 
+	#[structopt(short = "m", long)]
+	msgpack: bool,
+
 	#[structopt(long)]
 	username: Option<String>,
 
@@ -27,7 +30,7 @@ fn main() -> std::io::Result<()> {
 	let ip = opt.connect;
 	let port = opt.port;
 
-	let mut bone1 = Bone::new(&ip, &port);
+	let mut bone1 = Bone::new(&ip, &port, opt.msgpack);
 	bone1.connect();
 	
 	if let Some(username) = &opt.username {
@@ -42,11 +45,11 @@ fn main() -> std::io::Result<()> {
 		}
 	}
 
-	let data = bone1.send_command(&json::object!{"command" => "serial_number"}.dump());
+	let data = bone1.send_command(&json::object!{"command" => "serial_number"});
 
 	if let Some(command) = &opt.command {
 		// command mode
-		let parsed = bone1.send_command(&command);
+		let parsed = bone1.send_command(&json::parse(&command).unwrap());
 		let pretty_response = json::stringify_pretty(parsed, 4);
 
 		println!("{}", pretty_response);
@@ -55,7 +58,7 @@ fn main() -> std::io::Result<()> {
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
 
-		let parsed = bone1.send_command(&command);
+		let parsed = bone1.send_command(&json::parse(&command).unwrap());
 		let pretty_response = json::stringify_pretty(parsed, 4);
 
 		println!("{}", pretty_response);
@@ -87,8 +90,6 @@ fn main() -> std::io::Result<()> {
 			match result {
 				Err(msg) => eprintln!("invalid input: {}", msg),
 				Ok(command) => {
-					let command = json::stringify(command);
-
 					let parsed = bone1.send_command(&command);
 					let pretty_response = json::stringify_pretty(parsed, 4);
 

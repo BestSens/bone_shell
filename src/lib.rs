@@ -5,10 +5,17 @@ extern crate crypto;
 use crypto::digest::Digest;
 use crypto::sha2::Sha512;
 
+extern crate rmpv;
+extern crate rmp_serde;
+extern crate serde_json;
+
+use serde_json::Value;
+
 pub struct Bone {
 	ip: String,
 	port: String,
 	stream: Option<TcpStream>,
+	enable_msgpack: bool,
 }
 
 impl Bone {
@@ -35,11 +42,12 @@ impl Bone {
 		Bone::get_sha512_string(&concat)
 	}
 
-	pub fn new(ip: &str, port: &str) -> Bone {
+	pub fn new(ip: &str, port: &str, enable_msgpack: bool) -> Bone {
 		Bone {
 			ip: ip.to_string(),
 			port: port.to_string(),
 			stream: None,
+			enable_msgpack: enable_msgpack,
 		}
 	}
 
@@ -47,14 +55,22 @@ impl Bone {
 		self.stream = Some(TcpStream::connect(&self.get_connection_string()).unwrap());
 	}
 
-	pub fn send_command(&mut self, command: &str) -> json::JsonValue {
+	pub fn send_command(&mut self, command: &json::JsonValue) -> json::JsonValue {
 		if let Some(ref mut stream) = self.stream {
-			let mut send_data = String::from(command);
-			send_data.push_str("\r\n");
+			let send_data;
+			if !self.enable_msgpack {
+				let s = String::from(command.dump());
+				send_data = s.as_bytes().to_vec();
+			} else { 
+				let command: Value = serde_json::from_str(&command.dump()).unwrap();
+				send_data = rmp_serde::to_vec(&command).unwrap();
+			}
+
+			let send_data = [&send_data[..], "\r\n".as_bytes()].concat();
 
 			let mut pos = 0;
 			while pos < send_data.len() {
-				let bytes_written = stream.write(&send_data.as_bytes()[pos..]).unwrap();
+				let bytes_written = stream.write(&send_data[pos..]).unwrap();
 				pos += bytes_written;
 			}
 
@@ -72,9 +88,14 @@ impl Bone {
 				t += size;
 			}
 
-			let response = String::from_utf8(buffer).unwrap();
-
-			json::parse(&response).unwrap()
+			if !self.enable_msgpack {
+				let response = String::from_utf8(buffer).unwrap();
+				json::parse(&response).unwrap()
+			} else {
+				let value: rmpv::Value = rmp_serde::from_slice(&buffer[..]).unwrap();
+				let json = serde_json::to_string(&value).unwrap();
+				json::parse(&json).unwrap()
+			}
 		} else {
 			panic!("Not connected");
 		}
@@ -85,7 +106,7 @@ impl Bone {
 			"command" => "request_token"
 		};
 
-		let response = self.send_command(&command.dump());
+		let response = self.send_command(&command);
 		let token = &response["payload"]["token"].to_string();
 		let signed_token = Bone::get_signed_token(&password, &token);
 
@@ -97,7 +118,7 @@ impl Bone {
 			}
 		};
 
-		let response = self.send_command(&command.dump());
+		let response = self.send_command(&command);
 
 		let err = response["payload"]["error"].to_string();
 
