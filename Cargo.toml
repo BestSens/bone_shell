@@ -23,3 +23,6 @@ rmpv = { version = "0.4", features = ["with-serde"] }
 rmp-serde = "0.15"
 serde_json = "1.0"
 termcolor = "1.1"
+statistical = "1.0"
+textplots = "0.6.0"
+terminal_size = "0.1.16"

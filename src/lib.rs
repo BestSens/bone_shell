@@ -87,6 +87,18 @@ impl Bone {
 		output_vec.push((name.to_string(), temp));
 	}
 
+	fn calc_dv(buffer: &Vec<u8>) -> Vec<f32> {
+		let mut out = Vec::new();
+		for i in (0..buffer.len()).step_by(3) {
+			let s = String::from_utf8(buffer[i..i+3].to_vec()).unwrap();
+			let dv = usize::from_str_radix(&s, 16).unwrap();
+			let dv = (dv as f32 - 2048.) / 4096. * 5.;
+			out.push(dv);
+		}
+
+		out
+	}
+
 	pub fn new(ip: &str, port: &str, enable_msgpack: bool) -> Bone {
 		Bone {
 			ip: ip.to_string(),
@@ -172,6 +184,49 @@ impl Bone {
 			}
 
 			Ok((last_position, ret_vect))
+		} else {
+			panic!("Not connected");
+		}
+	}
+
+	pub fn send_dv_command(&mut self, command: &json::JsonValue) -> Result<Vec<f32>, String> {
+		if let Some(ref mut stream) = self.stream {
+			let send_data;
+
+			if !self.enable_msgpack {
+				let s = String::from(command.dump());
+				send_data = s.as_bytes().to_vec();
+			} else { 
+				let command: Value = match serde_json::from_str(&command.dump()) {
+					Ok(n) => n,
+					Err(err) => return Err(err.to_string()),
+				};
+				send_data = rmp_serde::to_vec(&command).unwrap();
+			}
+
+			let send_data = [&send_data[..], "\r\n".as_bytes()].concat();
+
+			let mut pos = 0;
+			while pos < send_data.len() {
+				let bytes_written = stream.write(&send_data[pos..]).unwrap();
+				pos += bytes_written;
+			}
+
+			let mut buffer = [0; 8];
+			stream.read_exact(&mut buffer).unwrap();
+
+			let s = String::from_utf8(buffer.to_vec()).unwrap();
+			let response_len = usize::from_str_radix(&s, 16).unwrap();
+
+			let mut buffer = vec![0; response_len];
+			let mut t = 0;
+
+			while t < response_len {
+				let size = stream.read(&mut buffer[t..]).unwrap();
+				t += size;
+			}
+
+			Ok(Bone::calc_dv(&buffer))
 		} else {
 			panic!("Not connected");
 		}

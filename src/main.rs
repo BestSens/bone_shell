@@ -4,7 +4,11 @@ use bone_api::Bone;
 use atty::Stream;
 use std::time::Instant;
 
+extern crate statistical;
+
+use textplots::{Chart, Plot, Shape};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use terminal_size::{Width, Height, terminal_size};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
@@ -140,7 +144,26 @@ fn main() -> std::io::Result<()> {
 	Ok(())
 }
 
+fn create_xy<T: Clone>(data: &[T], dt: f32) -> Vec<(f32, T)> {
+	let mut out = Vec::new();
+	
+	for t in 0..data.len() {
+		out.push((t as f32 * dt, data[t].clone()));
+	}
+
+	out
+}
+
 fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, response_time: bool) {
+	let size = terminal_size();
+	let term_size = {
+		if let Some((Width(w), Height(_h))) = size {
+			(w * 2 - 50, 80u16)
+		} else {
+			(200, 80u16)
+		}
+	};
+
 	let start = Instant::now();
 	if command["command"] == "sync" {
 		let data = bone.send_raw_command(&command).unwrap();
@@ -152,17 +175,28 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
 		}
 
-		for v in data.1 {
-			let sum = v.1.iter().sum::<f32>() as f32;
-			let count = v.1.len();
+		for v in &data.1 {
+			let mean = statistical::mean(&v.1[..]);
+			let stdev = statistical::standard_deviation(&v.1[..], None);
 
-			let mean = match count {
-				positive if positive > 0 => Some(sum  / count as f32),
-				_ => None
-			};
-
-			println!("mean {} = {}", v.0, mean.unwrap());
+			println!("{} mean = {}, stdev = {}", v.0, mean, stdev);
+			Chart::new(term_size.0.into(), term_size.1.into(), 0., data.1[0].1.len() as f32 * 2E-4)
+				.lineplot(&Shape::Lines(create_xy(&v.1, 2E-4).as_slice()))
+				.nice();
 		}
+	} else if command["command"] == "dv_data" {
+		let data = bone.send_dv_command(&command).unwrap();
+		let duration = start.elapsed().as_millis();
+
+		writeln_dimmed(&command.dump()).unwrap();
+
+		if response_time {
+			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
+		}
+
+		Chart::new(term_size.0.into(), term_size.1.into(), 0., data.len() as f32 / 10.)
+			.lineplot(&Shape::Lines(create_xy(&data, 0.1).as_slice()))
+			.nice();
 	} else {
 		let parsed = bone.send_command(&command).unwrap();
 		let duration = start.elapsed().as_millis();
