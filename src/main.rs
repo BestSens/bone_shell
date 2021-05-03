@@ -5,6 +5,7 @@ use atty::Stream;
 use std::time::Instant;
 
 extern crate statistical;
+extern crate rpassword;
 
 use textplots::{Chart, Plot, Shape};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -46,25 +47,26 @@ fn main() -> std::io::Result<()> {
 	let ip = opt.connect;
 	let port = opt.port;
 
+	let logged_in;
+	let username;
+
 	let mut bone1 = Bone::new(&ip, &port, opt.msgpack);
 	bone1.connect();
 	
-	if let Some(username) = &opt.username {
+	if let Some(username_tmp) = &opt.username {
 		if let Some(password) = &opt.password {
-			let result = bone1.login(username, password);
+			let result = bone1.login(username_tmp, password);
 			match result {
 				Err(msg) => panic!("Error while logging in: {}", msg),
-				_ => ()
+				_ => { logged_in = true; username = String::from(username_tmp); },
 			}
 		} else {
 			panic!("--username supplied without --password");
 		}
+	} else {
+		logged_in = false;
+		username = String::from("");
 	}
-
-	let data = match bone1.send_command(&json::object!{"command" => "serial_number"}) {
-		Ok(n) => n,
-		Err(_err) => json::object!{"error" => "missing"},
-	};
 
 	if let Some(command) = &opt.command {
 		// command mode
@@ -79,12 +81,16 @@ fn main() -> std::io::Result<()> {
 		command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 	} else {
 		// shell mode
+		let data = match bone1.send_command(&json::object!{"command" => "serial_number"}) {
+			Ok(n) => n,
+			Err(_err) => json::object!{"error" => "missing"},
+		};
+
 		let alias = &data["payload"]["alias"];
+		let serial_number = &data["payload"]["serial_number"];
 		let cnt_str;
 
 		if !alias.is_string() {
-			let serial_number = &data["payload"]["serial_number"];
-
 			if !serial_number.is_string() {
 				cnt_str = String::from("");
 			} else {
@@ -92,6 +98,12 @@ fn main() -> std::io::Result<()> {
 			}
 		} else {
 			cnt_str = alias.to_string();
+		}
+
+		writeln_dimmed(&format!("Connected to {}:{} ({})", ip, port, serial_number.to_string())).unwrap();
+
+		if logged_in {
+			writeln_dimmed(&format!("Successfully authenticated as user {}", username)).unwrap();
 		}
 
 		loop {
@@ -110,12 +122,31 @@ fn main() -> std::io::Result<()> {
 						return Ok(())
 					}
 
+					if command == "login" {
+						let mut username = String::new();
+						print!("username: ");
+						stdout().flush().unwrap();
+						stdin().read_line(&mut username).unwrap();
+						let tmp_len = username.trim_end().len();
+						username.truncate(tmp_len);
+
+						let password = rpassword::read_password_from_tty(Some("password: ")).unwrap();
+
+						let result = bone1.login(&username, &password);
+						match result {
+							Err(msg) => write_stderr(&format!("Error while logging in: {}", msg)).unwrap(),
+							_ => writeln_dimmed(&format!("Successfully authenticated as user {}", username)).unwrap(),
+						}
+
+						continue;
+					}
+
 					match command.find(" ") {
 						Some(n) => {
 							let s = command.split_at(n);
 							let payload = match json::parse(s.1) {
 								Ok(n) => n,
-								Err(err) => { eprintln!("error parsing payload: {}", err); continue; },
+								Err(err) => { write_stderr(&format!("error parsing payload: {}", err)).unwrap(); continue; },
 							};
 							command = json::object!{"command": s.0.clone(), "payload": payload, "api": opt.api}.dump();
 						},
@@ -130,7 +161,7 @@ fn main() -> std::io::Result<()> {
 
 			let result = json::parse(&command);
 			match result {
-				Err(msg) => eprintln!("invalid input: {}", msg),
+				Err(msg) => write_stderr(&format!("invalid input: {}", msg)).unwrap(),
 				Ok(command) => {
 					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 				}
@@ -237,5 +268,16 @@ fn writeln_dimmed(output: &str) -> Result<()> {
 		Err(_err) => stdout.set_color(&ColorSpec::new())?,
 	};
 	stdout.set_color(&ColorSpec::new())?;
+	Ok(())
+}
+
+fn write_stderr(output: &str) -> Result<()> {
+	let mut stderr = StandardStream::stderr(ColorChoice::Always);
+	stderr.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
+	match writeln!(&mut stderr, "{}", output) {
+		Ok(()) => (),
+		Err(_err) => stderr.set_color(&ColorSpec::new())?,
+	};
+	stderr.set_color(&ColorSpec::new())?;
 	Ok(())
 }

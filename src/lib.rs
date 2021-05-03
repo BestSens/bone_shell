@@ -306,10 +306,10 @@ impl Bone {
 
 		let response = self.send_command(&command)?;
 
-		let err = response["payload"]["error"].to_string();
+		let err = &response["payload"]["error"];
 
-		if err != "null" {
-			return Err(err)
+		if err.is_string() {
+			return Err(err.to_string());
 		}
 
 		Ok(response["payload"]["username"].to_string())
