@@ -68,16 +68,14 @@ fn main() -> std::io::Result<()> {
 
 	if let Some(command) = &opt.command {
 		// command mode
-		let mut command = json::parse(&command).unwrap();
-		command["api"] = opt.api.into();
+		let command = json::parse(&command).unwrap();
 		command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 	} else if !atty::is(Stream::Stdin) {
 		// pipe mode
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
 
-		let mut command = json::parse(&command).unwrap();
-		command["api"] = opt.api.into();
+		let command = json::parse(&command).unwrap();
 		command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 	} else {
 		// shell mode
@@ -119,10 +117,10 @@ fn main() -> std::io::Result<()> {
 								Ok(n) => n,
 								Err(err) => { eprintln!("error parsing payload: {}", err); continue; },
 							};
-							command = json::object!{"command": s.0.clone(), "payload": payload}.dump();
+							command = json::object!{"command": s.0.clone(), "payload": payload, "api": opt.api}.dump();
 						},
 						None => { 
-							command = json::object!{"command": command.clone()}.dump(); 
+							command = json::object!{"command": command.clone(), "api": opt.api}.dump(); 
 						},
 					}
 				}
@@ -133,8 +131,7 @@ fn main() -> std::io::Result<()> {
 			let result = json::parse(&command);
 			match result {
 				Err(msg) => eprintln!("invalid input: {}", msg),
-				Ok(mut command) => {
-					command["api"] = opt.api.into();
+				Ok(command) => {
 					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
 				}
 			}
