@@ -11,6 +11,8 @@ use textplots::{Chart, Plot, Shape};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use terminal_size::{Width, Height, terminal_size};
 
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 pub struct Opt {
@@ -30,6 +32,9 @@ pub struct Opt {
 	response_time: bool,
 
 	#[structopt(long)]
+	version: bool,
+
+	#[structopt(long)]
 	username: Option<String>,
 
 	#[structopt(long)]
@@ -43,6 +48,11 @@ pub struct Opt {
 
 fn main() -> std::io::Result<()> {
 	let opt = Opt::from_args();
+
+	if opt.version {
+		println!("bone_shell version: {}", VERSION);
+		return Ok(());
+	}
 
 	let ip = opt.connect;
 	let port = opt.port;
