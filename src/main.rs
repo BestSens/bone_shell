@@ -71,14 +71,14 @@ fn main() -> std::io::Result<()> {
 	if let Some(command) = &opt.command {
 		// command mode
 		let command = json::parse(&command).unwrap();
-		command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
+		command_operations(&mut bone1, &command, !opt.no_pretty, atty::is(Stream::Stdout) && opt.response_time, false);
 	} else if !atty::is(Stream::Stdin) {
 		// pipe mode
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
 
 		let command = json::parse(&command).unwrap();
-		command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
+		command_operations(&mut bone1, &command, !opt.no_pretty, atty::is(Stream::Stdout) && opt.response_time, false);
 	} else {
 		// shell mode
 		let data = match bone1.send_command(&json::object!{"command" => "serial_number"}) {
@@ -163,7 +163,7 @@ fn main() -> std::io::Result<()> {
 			match result {
 				Err(msg) => write_stderr(&format!("invalid input: {}", msg)).unwrap(),
 				Ok(command) => {
-					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time);
+					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time, true);
 				}
 			}
 		}
@@ -182,7 +182,7 @@ fn create_xy<T: Clone>(data: &[T], dt: f32) -> Vec<(f32, T)> {
 	out
 }
 
-fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, response_time: bool) {
+fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, response_time: bool, echo_command: bool) {
 	let size = terminal_size();
 	let term_size = {
 		if let Some((Width(w), Height(_h))) = size {
@@ -192,17 +192,18 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 		}
 	};
 
+	if echo_command {
+		writeln_dimmed(&command.dump()).unwrap();
+	}
+
 	let start = Instant::now();
 	if command["command"] == "sync" {
 		let data = bone.send_raw_command(&command).unwrap();
 		let duration = start.elapsed().as_millis();
 
-		writeln_dimmed(&command.dump()).unwrap();
-
 		if response_time {
 			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
 		}
-
 
 		let cycle_time = {
 			let parsed = bone.send_command(&json::object!{"command" => "cycle_time"});
@@ -229,8 +230,6 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 		let data = bone.send_dv_command(&command).unwrap();
 		let duration = start.elapsed().as_millis();
 
-		writeln_dimmed(&command.dump()).unwrap();
-
 		if response_time {
 			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
 		}
@@ -249,8 +248,6 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 		} else {
 			pretty_response = json::stringify(parsed);
 		}
-		
-		writeln_dimmed(&command.dump()).unwrap();
 
 		if response_time {
 			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
