@@ -193,15 +193,6 @@ fn create_xy<T: Clone>(data: &[T], dt: f32) -> Vec<(f32, T)> {
 }
 
 fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, response_time: bool, echo_command: bool) {
-	let size = terminal_size();
-	let term_size = {
-		if let Some((Width(w), Height(_h))) = size {
-			(w * 2 - 50, 80u16)
-		} else {
-			(200, 80u16)
-		}
-	};
-
 	if echo_command {
 		writeln_dimmed(&command.dump()).unwrap();
 	}
@@ -209,7 +200,7 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 	let start = Instant::now();
 	let duration;
 	if command["command"] == "sync" {
-		let data = bone.send_raw_command(&command).unwrap();
+		let data = bone.send_sync_command(&command).unwrap();
 		duration = start.elapsed().as_millis();
 
 		let cycle_time = {
@@ -224,16 +215,50 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 			}
 		};
 
-		for v in &data.1 {
-			let mean = statistical::mean(&v.1[..]);
-			let stdev = statistical::standard_deviation(&v.1[..], None);
+		print_raw(&data.1, cycle_time);
+	} else if command["command"] == "ks_sync" {
+		let data = bone.send_ks_sync_command(&command).unwrap();
+		duration = start.elapsed().as_millis();
 
-			println!("{} mean = {}, stdev = {}", v.0, mean, stdev);
-			Chart::new(term_size.0.into(), term_size.1.into(), 0., data.1[0].1.len() as f32 * cycle_time)
-				.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
-				.nice();
-		}
+		let cycle_time = {
+			let parsed = bone.send_command(&json::object!{"command" => "ks_cycle_time"});
+
+			match parsed {
+				Ok(n) => match n["payload"]["cycle_time"].as_number() {
+					Some(n) => f32::from(n) * 1E-6,
+					_ => 2E-4,
+				},
+				Err(_err) => 2E-4,
+			}
+		};
+
+		print_raw(&data.1, cycle_time);
+	} else if command["command"] == "ks" {
+		let data = bone.send_ks_command(&command).unwrap();
+		duration = start.elapsed().as_millis();
+
+		let cycle_time = {
+			let parsed = bone.send_command(&json::object!{"command" => "ks_cycle_time"});
+
+			match parsed {
+				Ok(n) => match n["payload"]["cycle_time"].as_number() {
+					Some(n) => f32::from(n) * 1E-6,
+					_ => 2E-4,
+				},
+				Err(_err) => 2E-4,
+			}
+		};
+
+		print_raw(&data.1, cycle_time);
 	} else if command["command"] == "dv_data" {
+		let term_size = {
+			if let Some((Width(w), Height(_h))) = terminal_size() {
+				(w * 2 - 50, 80u16)
+			} else {
+				(200, 80u16)
+			}
+		};
+
 		let data = bone.send_dv_command(&command).unwrap();
 		duration = start.elapsed().as_millis();
 
@@ -280,4 +305,28 @@ fn write_stderr(output: &str) -> Result<()> {
 	};
 	stderr.set_color(&ColorSpec::new())?;
 	Ok(())
+}
+
+fn print_raw(data: &Vec<(String, Vec<f32>)>, cycle_time: f32) {
+	let term_size = {
+		if let Some((Width(w), Height(_h))) = terminal_size() {
+			(w * 2 - 50, 80u16)
+		} else {
+			(200, 80u16)
+		}
+	};
+
+	for v in data {
+		if v.1.len() > 1 {
+			let mean = statistical::mean(&v.1[..]);
+			let stdev = statistical::standard_deviation(&v.1[..], None);
+
+			println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
+			Chart::new(term_size.0.into(), term_size.1.into(), 0., data[0].1.len() as f32 * cycle_time)
+				.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
+				.nice();
+		} else {
+			write_stderr(&format!("{}: not enough data points returned to plot graph", v.0)).unwrap();
+		}
+	}
 }

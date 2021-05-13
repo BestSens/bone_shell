@@ -87,6 +87,30 @@ impl Bone {
 		output_vec.push((name.to_string(), temp));
 	}
 
+	fn calc_f32_ks_sync(buffer: &Vec<u8>, output_vec: &mut Vec<(String, Vec<f32>)>) {
+		let mut temp: [Vec<f32>; 8] = Default::default();
+
+		for i in (0..buffer.len()).step_by(5) {
+			let channel: usize = buffer[i] as usize;
+			let data: u32 = buffer[i+4] as u32 + ((buffer[i+3] as u32) << 8) + ((buffer[i+2] as u32) << 16) + ((buffer[i+1] as u32) << 24);
+
+			let float: f32 = unsafe {
+				std::mem::transmute(data)
+			};
+
+			temp[channel].push(float);
+		}
+
+		let mut i = 0;
+		for x in &temp {
+			if x.len() > 0 {
+				output_vec.push((format!("channel {}", i), x.clone()));
+			}
+			
+			i += 1;
+		}
+	}
+
 	fn calc_dv(buffer: &Vec<u8>) -> Vec<f32> {
 		let mut out = Vec::new();
 		for i in (0..buffer.len()).step_by(3) {
@@ -112,19 +136,9 @@ impl Bone {
 		self.stream = Some(TcpStream::connect(&self.get_connection_string()).unwrap());
 	}
 
-	pub fn send_raw_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
+	pub fn send_raw_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<u8>), String> {
 		if let Some(ref mut stream) = self.stream {
 			let send_data;
-
-			let mut filter: Vec<String> = Vec::new();
-
-			if command["payload"]["filter"].is_array() {
-				for a in command["payload"]["filter"].members() {
-					filter.push(a.to_string());
-				}
-			} else {
-				filter = vec!(String::from("saw"), String::from("int2"), String::from("coe"), String::from("int"));
-			}
 
 			if !self.enable_msgpack {
 				let s = String::from(command.dump());
@@ -151,8 +165,6 @@ impl Bone {
 			let s = String::from_utf8(buffer.to_vec()).unwrap();
 			let response_len = usize::from_str_radix(&s, 16).unwrap();
 
-			let mut ret_vect = Vec::new();
-
 			let mut last_position = [0; 4];
 			stream.read_exact(&mut last_position).unwrap();
 
@@ -171,22 +183,69 @@ impl Bone {
 				t += size;
 			}
 
-			let split_val = response_len / filter.len();
-			let mut pos = 0;
-
-			for current in filter {
-				match &current[..] {
-					"saw" => Bone::calc_saw(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect),
-					_ => Bone::calc_f32(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect, &current),
-				}
-
-				pos += split_val;
-			}
-
-			Ok((last_position, ret_vect))
+			Ok((last_position, buffer))
 		} else {
 			panic!("Not connected");
 		}
+	}
+
+	pub fn send_sync_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
+		let mut filter: Vec<String> = Vec::new();
+
+		if command["payload"]["filter"].is_array() {
+			for a in command["payload"]["filter"].members() {
+				filter.push(a.to_string());
+			}
+		} else {
+			filter = vec!(String::from("saw"), String::from("int2"), String::from("coe"), String::from("int"));
+		}
+
+		let (last_position, buffer) = self.send_raw_command(command).unwrap();
+
+		let split_val = buffer.len() / filter.len();
+		let mut pos = 0;
+		let mut ret_vect = Vec::new();
+
+		for current in filter {
+			match &current[..] {
+				"saw" => Bone::calc_saw(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect),
+				_ => Bone::calc_f32(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect, &current),
+			}
+
+			pos += split_val;
+		}
+
+		Ok((last_position, ret_vect))
+	}
+
+	pub fn send_ks_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
+		let mut command = command.clone();
+		command["payload"]["float"] = true.into();
+
+		let channel: i32;
+		if command["payload"]["channel"].is_number() {
+			channel = command["payload"]["channel"].as_i32().unwrap();
+		} else {
+			channel = 0;
+		}
+
+		let (last_position, buffer) = self.send_raw_command(&command).unwrap();
+
+		let mut ret_vect = Vec::new();
+
+		Bone::calc_f32(&buffer, &mut ret_vect, &format!("channel {}", channel));
+
+		Ok((last_position, ret_vect))
+	}
+
+	pub fn send_ks_sync_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
+		let (last_position, buffer) = self.send_raw_command(command).unwrap();
+
+		let mut ret_vect = Vec::new();
+
+		Bone::calc_f32_ks_sync(&buffer, &mut ret_vect);
+
+		Ok((last_position, ret_vect))
 	}
 
 	pub fn send_dv_command(&mut self, command: &json::JsonValue) -> Result<Vec<f32>, String> {
