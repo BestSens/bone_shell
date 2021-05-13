@@ -207,13 +207,10 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 	}
 
 	let start = Instant::now();
+	let duration;
 	if command["command"] == "sync" {
 		let data = bone.send_raw_command(&command).unwrap();
-		let duration = start.elapsed().as_millis();
-
-		if response_time {
-			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
-		}
+		duration = start.elapsed().as_millis();
 
 		let cycle_time = {
 			let parsed = bone.send_command(&json::object!{"command" => "cycle_time"});
@@ -238,18 +235,14 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 		}
 	} else if command["command"] == "dv_data" {
 		let data = bone.send_dv_command(&command).unwrap();
-		let duration = start.elapsed().as_millis();
-
-		if response_time {
-			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
-		}
+		duration = start.elapsed().as_millis();
 
 		Chart::new(term_size.0.into(), term_size.1.into(), 0., data.len() as f32 / 10.)
 			.lineplot(&Shape::Lines(create_xy(&data, 0.1).as_slice()))
 			.nice();
 	} else {
 		let parsed = bone.send_command(&command).unwrap();
-		let duration = start.elapsed().as_millis();
+		duration = start.elapsed().as_millis();
 
 		let pretty_response;
 
@@ -259,11 +252,11 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 			pretty_response = json::stringify(parsed);
 		}
 
-		if response_time {
-			writeln_dimmed(&format!("took {} ms", duration)).unwrap();
-		}
-
 		println!("{}", pretty_response);
+	}
+
+	if response_time {
+		writeln_dimmed(&format!("took {} ms", duration)).unwrap();
 	}
 }
 
