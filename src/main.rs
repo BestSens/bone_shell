@@ -154,11 +154,19 @@ fn main() -> std::io::Result<()> {
 					match command.find(" ") {
 						Some(n) => {
 							let s = command.split_at(n);
-							let payload = match json::parse(s.1) {
-								Ok(n) => n,
-								Err(err) => { write_stderr(&format!("error parsing payload: {}", err)).unwrap(); continue; },
-							};
-							command = json::object!{"command": s.0.clone(), "payload": payload, "api": opt.api}.dump();
+							let payload = &s.1[1..];
+
+							if let Some(first_char) = payload.chars().next() {
+								if first_char != '{' && first_char != '[' {
+									command = json::object!{"command": s.0.clone(), "payload": {"name": payload}, "api": opt.api}.dump();
+								} else {
+									let payload = match json::parse(s.1) {
+										Ok(n) => n,
+										Err(err) => { write_stderr(&format!("error parsing payload: {}", err)).unwrap(); continue; },
+									};
+									command = json::object!{"command": s.0.clone(), "payload": payload, "api": opt.api}.dump();
+								}
+							}
 						},
 						None => { 
 							command = json::object!{"command": command.clone(), "api": opt.api}.dump(); 
