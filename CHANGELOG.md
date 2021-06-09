@@ -1,3 +1,5 @@
+## 1.0.1 (unreleased)
+
 ## 1.0.0 (09.06.2021)
 - Add support for `ks_sync` and `ks` command
 - Add second level for quick commands, if parameter two is not json, it will be sent as name
