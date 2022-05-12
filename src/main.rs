@@ -140,7 +140,7 @@ fn main() -> std::io::Result<()> {
 						let tmp_len = username.trim_end().len();
 						username.truncate(tmp_len);
 
-						let password = rpassword::read_password_from_tty(Some("password: ")).unwrap();
+						let password = rpassword::prompt_password("password: ").unwrap();
 
 						let result = bone1.login(&username, &password);
 						match result {
