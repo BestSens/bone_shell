@@ -4,12 +4,17 @@ use bone_api::Bone;
 use atty::Stream;
 use std::time::Instant;
 
+use crossterm::{
+    execute,
+    style::{Color, Print, ResetColor, SetForegroundColor, SetAttribute, Attribute},
+    Result,
+	terminal::{size}
+};
+
 extern crate statistical;
 extern crate rpassword;
 
 use textplots::{Chart, Plot, Shape};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-use terminal_size::{Width, Height, terminal_size};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -190,6 +195,13 @@ fn main() -> std::io::Result<()> {
 	Ok(())
 }
 
+fn get_term_size() -> (u32, u32) {
+	match size() {
+		Ok((w, _)) => (u32::from(w) * 2 - 50, 80u32),
+		_ => (200u32, 80u32)
+	}
+}
+
 fn create_xy<T: Clone>(data: &[T], dt: f32) -> Vec<(f32, T)> {
 	let mut out = Vec::new();
 	
@@ -259,18 +271,12 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 
 		print_raw(&data.1, cycle_time);
 	} else if command["command"] == "dv_data" {
-		let term_size = {
-			if let Some((Width(w), Height(_h))) = terminal_size() {
-				(w * 2 - 50, 80u16)
-			} else {
-				(200, 80u16)
-			}
-		};
+		let term_size = get_term_size();
 
 		let data = bone.send_dv_command(&command).unwrap();
 		duration = start.elapsed().as_millis();
 
-		Chart::new(term_size.0.into(), term_size.1.into(), 0., data.len() as f32 / 10.)
+		Chart::new(term_size.0, term_size.1, 0., data.len() as f32 / 10.)
 			.lineplot(&Shape::Lines(create_xy(&data, 0.1).as_slice()))
 			.nice();
 	} else {
@@ -294,35 +300,31 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 }
 
 fn writeln_dimmed(output: &str) -> Result<()> {
-	let mut stdout = StandardStream::stdout(ColorChoice::Always);
-	stdout.set_color(ColorSpec::new().set_fg(Some(Color::Rgb(150, 150, 150))).set_italic(true))?;
-	match writeln!(&mut stdout, "# {}", output) {
-		Ok(()) => (),
-		Err(_err) => stdout.set_color(&ColorSpec::new())?,
-	};
-	stdout.set_color(&ColorSpec::new())?;
+    execute!(
+        stdout(),
+        SetForegroundColor(Color::Rgb{r: 150, g: 150, b: 150}),
+		SetAttribute(Attribute::Italic),
+        Print(format!("# {}\n", output)),
+        ResetColor
+    )?;
+
 	Ok(())
 }
 
 fn write_stderr(output: &str) -> Result<()> {
-	let mut stderr = StandardStream::stderr(ColorChoice::Always);
-	stderr.set_color(ColorSpec::new().set_fg(Some(Color::Red)).set_bold(true))?;
-	match writeln!(&mut stderr, "{}", output) {
-		Ok(()) => (),
-		Err(_err) => stderr.set_color(&ColorSpec::new())?,
-	};
-	stderr.set_color(&ColorSpec::new())?;
+	execute!(
+        stderr(),
+        SetForegroundColor(Color::Red),
+		SetAttribute(Attribute::Bold),
+        Print(format!("{}\n", output)),
+        ResetColor
+    )?;
+
 	Ok(())
 }
 
 fn print_raw(data: &Vec<(String, Vec<f32>)>, cycle_time: f32) {
-	let term_size = {
-		if let Some((Width(w), Height(_h))) = terminal_size() {
-			(w * 2 - 50, 80u16)
-		} else {
-			(200, 80u16)
-		}
-	};
+	let term_size = get_term_size();
 
 	for v in data {
 		if v.1.len() > 1 {
@@ -330,7 +332,7 @@ fn print_raw(data: &Vec<(String, Vec<f32>)>, cycle_time: f32) {
 			let stdev = statistical::standard_deviation(&v.1[..], None);
 
 			println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
-			Chart::new(term_size.0.into(), term_size.1.into(), 0., data[0].1.len() as f32 * cycle_time)
+			Chart::new(term_size.0, term_size.1, 0., data[0].1.len() as f32 * cycle_time)
 				.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
 				.nice();
 		} else {
