@@ -8,8 +8,11 @@ use crossterm::{
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor, SetAttribute, Attribute},
     Result,
-	terminal::{size}
+	terminal::{size},
 };
+
+use rustyline::error::ReadlineError;
+use rustyline::Editor;
 
 extern crate statistical;
 extern crate rpassword;
@@ -96,6 +99,9 @@ fn main() -> std::io::Result<()> {
 		command_operations(&mut bone1, &command, !opt.no_pretty, atty::is(Stream::Stdout) && opt.response_time, false);
 	} else {
 		// shell mode
+
+		let mut rl = Editor::<()>::new();
+
 		let data = match bone1.send_command(&json::object!{"command" => "serial_number"}) {
 			Ok(n) => n,
 			Err(_err) => json::object!{"error" => "missing"},
@@ -121,12 +127,28 @@ fn main() -> std::io::Result<()> {
 			writeln_dimmed(&format!("Successfully authenticated as user {}", username)).unwrap();
 		}
 
-		loop {
-			print!("{} > ", cnt_str);
-			stdout().flush().unwrap();
+		let mut command_history = vec![];
 
-			let mut command = String::new();
-			stdin().read_line(&mut command).unwrap();
+		loop {
+			let readline = rl.readline(&format!("{} > ", cnt_str));
+			let mut command;
+
+			match readline {
+				Ok(line) => {
+					rl.add_history_entry(line.as_str());
+					command = line;
+				},
+				Err(ReadlineError::Interrupted) => {
+					command = "quit".into();
+				},
+				Err(ReadlineError::Eof) => {
+					command = "quit".into();
+				},
+				Err(err) => {
+					println!("Error: {:?}", err);
+					break
+				}
+			}
 
 			if let Some(first_char) = command.chars().next() {
 				if first_char != '{' && first_char != '[' {
@@ -176,7 +198,7 @@ fn main() -> std::io::Result<()> {
 							}
 						},
 						None => {
-							let command_name = parse_shortcuts(command.as_str());
+							let command_name = parse_shortcuts(&command);
 							command = json::object!{"command": command_name, "api": opt.api}.dump(); 
 						},
 					}
@@ -192,6 +214,8 @@ fn main() -> std::io::Result<()> {
 					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time, true);
 				}
 			}
+
+			command_history.push(command);
 		}
 	}
 
