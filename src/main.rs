@@ -1,4 +1,5 @@
 use std::io::*;
+use std::path::PathBuf;
 use structopt::StructOpt;
 use bone_api::Bone;
 use atty::Stream;
@@ -8,7 +9,7 @@ use crossterm::{
     execute,
     style::{Color, Print, ResetColor, SetForegroundColor, SetAttribute, Attribute},
     Result,
-	terminal::{size},
+	terminal::size,
 };
 
 use rustyline::error::ReadlineError;
@@ -16,6 +17,7 @@ use rustyline::Editor;
 
 extern crate statistical;
 extern crate rpassword;
+extern crate dirs;
 
 use textplots::{Chart, Plot, Shape};
 
@@ -100,7 +102,19 @@ fn main() -> std::io::Result<()> {
 	} else {
 		// shell mode
 
+		let history_path = match dirs::home_dir() {
+			Some(home_path) => home_path.join(".bone_shell_history"),
+			None => PathBuf::new(),
+		};
+
 		let mut rl = Editor::<()>::new();
+
+		if let Some(path) = history_path.to_str() {
+			match rl.load_history(path) {
+				Ok(_) => (),
+				Err(_) => ()
+			}
+		}
 
 		let data = match bone1.send_command(&json::object!{"command" => "serial_number"}) {
 			Ok(n) => n,
@@ -127,15 +141,12 @@ fn main() -> std::io::Result<()> {
 			writeln_dimmed(&format!("Successfully authenticated as user {}", username)).unwrap();
 		}
 
-		let mut command_history = vec![];
-
 		loop {
 			let readline = rl.readline(&format!("{} > ", cnt_str));
 			let mut command;
 
 			match readline {
 				Ok(line) => {
-					rl.add_history_entry(line.as_str());
 					command = line;
 				},
 				Err(ReadlineError::Interrupted) => {
@@ -156,7 +167,7 @@ fn main() -> std::io::Result<()> {
 					command.truncate(tmp_len);
 
 					if command == "q" || command == "quit" || command == "exit" {
-						return Ok(())
+						break
 					}
 
 					if command == "login" {
@@ -212,10 +223,16 @@ fn main() -> std::io::Result<()> {
 				Err(msg) => write_stderr(&format!("invalid input: {}", msg)).unwrap(),
 				Ok(command) => {
 					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time, true);
+					rl.add_history_entry(command.dump());
 				}
 			}
+		}
 
-			command_history.push(command);
+		if let Some(path) = history_path.to_str() {
+			match rl.save_history(path) {
+				Ok(_) => (),
+				Err(_) => println!("Error saving history to {path}")
+			}
 		}
 	}
 
