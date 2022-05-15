@@ -12,8 +12,12 @@ use crossterm::{
 	terminal::size,
 };
 
-use rustyline::error::ReadlineError;
-use rustyline::Editor;
+use rustyline::{
+	Editor,
+	Config,
+	CompletionType,
+	error::ReadlineError,
+};
 
 extern crate statistical;
 extern crate rpassword;
@@ -107,7 +111,13 @@ fn main() -> std::io::Result<()> {
 			None => PathBuf::new(),
 		};
 
-		let mut rl = Editor::<()>::new();
+		let config = Config::builder()
+			.history_ignore_space(true)
+			.completion_type(CompletionType::List)
+			.auto_add_history(false)
+			.build();
+
+		let mut rl = Editor::<()>::with_config(config);
 
 		if let Some(path) = history_path.to_str() {
 			match rl.load_history(path) {
@@ -229,7 +239,7 @@ fn main() -> std::io::Result<()> {
 		}
 
 		if let Some(path) = history_path.to_str() {
-			match rl.save_history(path) {
+			match rl.append_history(path) {
 				Ok(_) => (),
 				Err(_) => println!("Error saving history to {path}")
 			}

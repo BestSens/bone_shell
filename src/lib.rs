@@ -1,9 +1,7 @@
 use std::io::prelude::*;
 use std::net::TcpStream;
 
-extern crate crypto;
-use crypto::digest::Digest;
-use crypto::sha2::Sha512;
+use sha2::{Sha512, Digest};
 
 extern crate rmpv;
 extern crate rmp_serde;
@@ -27,10 +25,12 @@ impl Bone {
 	}
 
 	fn get_sha512_string(input_str: &str) -> String {
-		let mut hasher = Sha512::new();
+		let mut hasher = Sha512::default();
 
-		hasher.input_str(input_str);
-		hasher.result_str()
+		hasher.update(input_str.as_bytes());
+		let hash = hasher.finalize();
+
+		format!("{:x}", hash)
 	}
 
 	fn get_signed_token(password: &str, token: &str) -> String {
