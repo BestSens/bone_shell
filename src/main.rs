@@ -251,9 +251,9 @@ fn main() -> std::io::Result<()> {
 
 fn parse_shortcuts(command: &str) -> &str {
 	match command {
-		"cd" => ("channel_data"),
-		"ca" => ("channel_attributes"),
-		&_ => (command),
+		"cd" => "channel_data",
+		"ca" => "channel_attributes",
+		&_ => command,
 	}
 }
 
