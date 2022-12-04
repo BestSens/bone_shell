@@ -27,6 +27,5 @@ textplots = "0.8"
 rpassword = "6.0"
 rustyline = "9.1.2"
 dirs = "4.0"
-openssl-sys = "0.9"
-openssl = "0.10"
-hex = "0.4.3"
+sha2 = "0.10.6"
+rustls = { version = "0.20.7", features = ["dangerous_configuration"]}
