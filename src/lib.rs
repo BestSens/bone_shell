@@ -2,7 +2,8 @@ use std::net::TcpStream;
 
 use std::io::{Read, Write};
 
-use sha2::{Sha512, Digest};
+use ring::digest::SHA512;
+use data_encoding::HEXLOWER;
 
 extern crate rmpv;
 extern crate rmp_serde;
@@ -56,13 +57,8 @@ impl Bone {
 	}
 
 	fn get_sha512_string(input_str: &str) -> String {
-		let mut hasher = Sha512::default();
-
-		hasher.update(input_str.as_bytes());
-		let hash = hasher.finalize();
-
-		format!("{:x}", hash)
-
+		let hash = ring::digest::digest(&SHA512, input_str.as_bytes());
+		HEXLOWER.encode(hash.as_ref())
 	}
 
 	fn get_signed_token(password: &str, token: &str) -> String {
