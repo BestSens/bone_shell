@@ -25,9 +25,12 @@ build:
             - target
     artifacts:
         <<: *artifacts
+        reports:
+            dotenv: generate_executables.env
     before_script:
         - mkdir -p ${CI_PROJECT_DIR}/.cargo
         - cp -r /usr/local/cargo/config ${CI_PROJECT_DIR}/.cargo/config
+        - echo GE_JOB_ID=$CI_JOB_ID >> generate_executables.env
     script:
         - cargo build --release
         - cargo build --release --target=arm-unknown-linux-gnueabihf
