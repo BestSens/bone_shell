@@ -170,7 +170,7 @@ impl Bone {
 				.with_custom_certificate_verifier(SkipServerVerification::new())
 				.with_no_client_auth();
 
-			let server_name = self.ip.as_str().try_into().unwrap();
+			let server_name = "bone".try_into().unwrap();
 			let rustls_connection = rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
 			let tls_stream = rustls::StreamOwned::new(rustls_connection, stream);
 			self.stream = Some(Box::new(tls_stream));
