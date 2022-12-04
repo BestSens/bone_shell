@@ -219,7 +219,7 @@ fn main() -> std::io::Result<()> {
 
 							if let Some(first_char) = payload.chars().next() {
 								if first_char != '{' && first_char != '[' {
-									command = json::object!{"command": command_name.clone(), "payload": {"name": payload}, "api": opt.api}.dump();
+									command = parse_parameters(command_name, payload, opt.api);
 								} else {
 									let payload = match json::parse(s.1) {
 										Ok(n) => n,
@@ -265,6 +265,16 @@ fn parse_shortcuts(command: &str) -> &str {
 		"cd" => "channel_data",
 		"ca" => "channel_attributes",
 		&_ => command,
+	}
+}
+
+fn parse_parameters(command: &str, argument: &str, api: u32) -> String {
+	if argument == "--all" {
+		json::object!{"command": command.clone(), "payload": {"all": true}, "api": api}.dump()
+	} else if argument == "--list" {
+		json::object!{"command": command.clone(), "payload": {"all": true, "filter": [""]}, "api": api}.dump()
+	} else {
+		json::object!{"command": command.clone(), "payload": {"name": argument}, "api": api}.dump()
 	}
 }
 
