@@ -1,4 +1,4 @@
-## 1.1.0 (unreleased)
+## 1.1.0 (04.12.2022)
 - Add shortcuts for `channel_data` and `chanel_attributes`
 - Update libraries
 - Add support for ssl encryption (enabled by default)
