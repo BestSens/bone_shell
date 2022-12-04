@@ -29,9 +29,9 @@ build:
         - mkdir -p ${CI_PROJECT_DIR}/.cargo
         - cp -r /usr/local/cargo/config ${CI_PROJECT_DIR}/.cargo/config
     script:
-        - export ENV SSL_CERT_FILE=/etc/ssl/certs/ca-bundle.crt 
         - cargo build --release
-        - cargo build --release --target=arm-unknown-linux-gnueabihf
+        - OPENSSL_LIB_DIR="/opt/boneos/2.0.3/sysroots/cortexa9hf-vfp-neon-poky-linux-gnueabi/opt/openssl-3/libs/" \
+            cargo build --release --target=arm-unknown-linux-gnueabihf
         - cargo build --release --target=x86_64-pc-windows-gnu
         - cp target/release/bone_shell ./bone_shell
         - cp target/arm-unknown-linux-gnueabihf/release/bone_shell ./bone_shell_arm
