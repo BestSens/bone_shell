@@ -1,5 +1,7 @@
-use std::io::prelude::*;
 use std::net::TcpStream;
+
+use openssl::ssl::{SslMethod, SslConnector, SslVerifyMode};
+use std::io::{Read, Write};
 
 use sha2::{Sha512, Digest};
 
@@ -9,11 +11,15 @@ extern crate serde_json;
 
 use serde_json::Value;
 
+trait IsStream: Read + Write{}
+impl<T: Read + Write> IsStream for T {}
+
 pub struct Bone {
 	ip: String,
 	port: String,
-	stream: Option<TcpStream>,
+	stream: Option<Box<dyn IsStream>>,
 	enable_msgpack: bool,
+	use_ssl: bool,
 }
 
 impl Bone {
@@ -123,17 +129,33 @@ impl Bone {
 		out
 	}
 
-	pub fn new(ip: &str, port: &str, enable_msgpack: bool) -> Bone {
+	pub fn new(ip: &str, port: &str, enable_msgpack: bool, use_ssl: bool) -> Bone {
 		Bone {
 			ip: ip.to_string(),
 			port: port.to_string(),
 			stream: None,
-			enable_msgpack: enable_msgpack,
+			enable_msgpack,
+			use_ssl,
 		}
 	}
 
 	pub fn connect(&mut self) {
-		self.stream = Some(TcpStream::connect(&self.get_connection_string()).unwrap());
+		let stream = TcpStream::connect(&self.get_connection_string()).unwrap();
+
+		if self.use_ssl {
+			let mut ssl_ctx_builder = SslConnector::builder(SslMethod::tls()).unwrap();
+		
+			#[cfg(openssl111)]
+			ssl_ctx_builder.set_ciphersuites("TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256").unwrap();
+	
+			ssl_ctx_builder.set_verify(SslVerifyMode::empty());
+	
+			let ssl_ctx = ssl_ctx_builder.build();
+	
+			self.stream = Some(Box::new(ssl_ctx.connect(&self.get_connection_string(), stream).unwrap()));
+		} else {
+			self.stream = Some(Box::new(stream));
+		}
 	}
 
 	pub fn send_raw_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<u8>), String> {
