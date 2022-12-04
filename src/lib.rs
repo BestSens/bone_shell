@@ -1,13 +1,13 @@
 use std::net::TcpStream;
 
 use openssl::ssl::{SslMethod, SslConnector, SslVerifyMode};
+use openssl::sha::sha512;
 use std::io::{Read, Write};
-
-use sha2::{Sha512, Digest};
 
 extern crate rmpv;
 extern crate rmp_serde;
 extern crate serde_json;
+extern crate hex;
 
 use serde_json::Value;
 
@@ -31,12 +31,9 @@ impl Bone {
 	}
 
 	fn get_sha512_string(input_str: &str) -> String {
-		let mut hasher = Sha512::default();
-
-		hasher.update(input_str.as_bytes());
-		let hash = hasher.finalize();
-
-		format!("{:x}", hash)
+		let hash = sha512(input_str.as_bytes());
+		let hash_str = hex::encode(hash);
+		format!("{}", hash_str)
 	}
 
 	fn get_signed_token(password: &str, token: &str) -> String {
