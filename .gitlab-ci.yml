@@ -52,3 +52,11 @@ release_job:
         description: 'Automatically created'
         tag_name: '$CI_COMMIT_TAG'
         ref: '$CI_COMMIT_TAG'
+        assets:
+            links:
+                - name: "Linux x86_64"
+                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/file/bone_shell"
+                - name: "Linux ARM"
+                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/file/bone_shell_arm"
+                - name: "Windows x86_64"
+                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/file/bone_shell_x86_64.exe"
