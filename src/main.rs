@@ -141,7 +141,7 @@ fn main() -> std::io::Result<()> {
 			.auto_add_history(false)
 			.build();
 
-		let mut rl = Editor::<()>::with_config(config);
+		let mut rl = Editor::<()>::with_config(config).unwrap();
 
 		if let Some(path) = history_path.to_str() {
 			match rl.load_history(path) {
