@@ -33,8 +33,11 @@ pub struct Opt {
 	#[structopt(short, long, default_value = "localhost")]
 	connect: String,
 
-	#[structopt(short, long, default_value = "6450")]
-	port: String,
+	#[structopt(short, long)]
+	port: Option<String>,
+
+	#[structopt(long)]
+	unencrypted: bool,
 
 	#[structopt(short, long)]
 	msgpack: bool,
@@ -69,12 +72,20 @@ fn main() -> std::io::Result<()> {
 	}
 
 	let ip = opt.connect;
-	let port = opt.port;
+	let port = if let Some(port) = opt.port {
+		port
+	} else {
+		if opt.unencrypted {
+			"6450".into()
+		} else {
+			"6451".into()
+		}
+	};
 
 	let logged_in;
 	let username;
 
-	let mut bone1 = Bone::new(&ip, &port, opt.msgpack);
+	let mut bone1 = Bone::new(&ip, &port, opt.msgpack, !opt.unencrypted);
 	bone1.connect();
 	
 	if let Some(username_tmp) = &opt.username {
