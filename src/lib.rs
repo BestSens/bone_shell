@@ -1,15 +1,18 @@
 use std::net::TcpStream;
 
-use openssl::ssl::{SslMethod, SslConnector, SslVerifyMode};
-use openssl::sha::sha512;
 use std::io::{Read, Write};
+
+use sha2::{Sha512, Digest};
 
 extern crate rmpv;
 extern crate rmp_serde;
 extern crate serde_json;
-extern crate hex;
 
 use serde_json::Value;
+
+use rustls;
+
+use std::sync::Arc;
 
 trait IsStream: Read + Write{}
 impl<T: Read + Write> IsStream for T {}
@@ -22,6 +25,28 @@ pub struct Bone {
 	use_ssl: bool,
 }
 
+struct SkipServerVerification;
+
+impl SkipServerVerification {
+    fn new() -> Arc<Self> {
+        Arc::new(Self)
+    }
+}
+
+impl rustls::client::ServerCertVerifier for SkipServerVerification {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &rustls::Certificate,
+        _intermediates: &[rustls::Certificate],
+        _server_name: &rustls::ServerName,
+        _scts: &mut dyn Iterator<Item = &[u8]>,
+        _ocsp_response: &[u8],
+        _now: std::time::SystemTime,
+    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        Ok(rustls::client::ServerCertVerified::assertion())
+    }
+}
+
 impl Bone {
 	fn get_connection_string(&self) -> String {
 		let mut connect_str = String::from(&self.ip);
@@ -31,9 +56,13 @@ impl Bone {
 	}
 
 	fn get_sha512_string(input_str: &str) -> String {
-		let hash = sha512(input_str.as_bytes());
-		let hash_str = hex::encode(hash);
-		format!("{}", hash_str)
+		let mut hasher = Sha512::default();
+
+		hasher.update(input_str.as_bytes());
+		let hash = hasher.finalize();
+
+		format!("{:x}", hash)
+
 	}
 
 	fn get_signed_token(password: &str, token: &str) -> String {
@@ -140,16 +169,15 @@ impl Bone {
 		let stream = TcpStream::connect(&self.get_connection_string()).unwrap();
 
 		if self.use_ssl {
-			let mut ssl_ctx_builder = SslConnector::builder(SslMethod::tls()).unwrap();
-		
-			#[cfg(openssl111)]
-			ssl_ctx_builder.set_ciphersuites("TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256").unwrap();
-	
-			ssl_ctx_builder.set_verify(SslVerifyMode::empty());
-	
-			let ssl_ctx = ssl_ctx_builder.build();
-	
-			self.stream = Some(Box::new(ssl_ctx.connect(&self.get_connection_string(), stream).unwrap()));
+			let config = rustls::ClientConfig::builder()
+				.with_safe_defaults()
+				.with_custom_certificate_verifier(SkipServerVerification::new())
+				.with_no_client_auth();
+
+			let server_name = self.ip.as_str().try_into().unwrap();
+			let rustls_connection = rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
+			let tls_stream = rustls::StreamOwned::new(rustls_connection, stream);
+			self.stream = Some(Box::new(tls_stream));
 		} else {
 			self.stream = Some(Box::new(stream));
 		}
