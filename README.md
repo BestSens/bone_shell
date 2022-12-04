@@ -12,13 +12,14 @@ Usage of the tool is like follows:
 bone_shell [OPTION...] command
 		--version			print version string
 		--connect arg		connect to specified ip (default: localhost)
-		--port arg			connect to specified port (default: 6450)
+		--port arg			connect to specified port (default: 6451 / 6450)
 	-m,	--msgpack			compress sent and received data with msgpack
 	-n,	--no-pretty			don't do a pretty print of received JSON, just output it in one line
 	-r,	--response-time		every command executed in a TTY environment shows displays the execution time of the command
 		--username arg		supply a username to initiate a login before executing command
 		--password arg		if a username is set, a password is mandatory
 		--api arg			api version that is used on command completion (default: 2)
+		--unencrypted		use unencrypted connection
 ```
 
 ## Pipe & Command-Mode
