@@ -2,6 +2,7 @@
 - Add shortcuts for `channel_data` and `chanel_attributes`
 - Update libraries
 - Add support for ssl encryption (enabled by default)
+- Allow to use `--serial` to generate link local ipv6 adress for given serial
 
 ## 1.0.0 (09.06.2021)
 - Add support for `ks_sync` and `ks` command

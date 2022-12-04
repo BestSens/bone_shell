@@ -13,6 +13,7 @@ bone_shell [OPTION...] command
 		--version			print version string
 		--connect arg		connect to specified ip (default: localhost)
 		--port arg			connect to specified port (default: 6451 / 6450)
+		--serial arg		instead of connecting to given ip a link local ipv6 address is generated from given serial number
 	-m,	--msgpack			compress sent and received data with msgpack
 	-n,	--no-pretty			don't do a pretty print of received JSON, just output it in one line
 	-r,	--response-time		every command executed in a TTY environment shows displays the execution time of the command

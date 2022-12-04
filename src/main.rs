@@ -4,6 +4,7 @@ use structopt::StructOpt;
 use bone_api::Bone;
 use atty::Stream;
 use std::time::Instant;
+use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 
 use crossterm::{
     execute,
@@ -60,6 +61,9 @@ pub struct Opt {
 	#[structopt(long, default_value = "2")]
 	api: u32,
 
+	#[structopt(long)]
+	serial: Option<u32>,
+
 	command: Option<String>
 }
 
@@ -71,7 +75,14 @@ fn main() -> std::io::Result<()> {
 		return Ok(());
 	}
 
-	let ip = opt.connect;
+	let ip;
+
+	if let Some(serial) = opt.serial {
+		ip = get_ipv6_link_local_from_serial(serial);
+	} else {
+		ip = opt.connect;
+	}
+
 	let port = if let Some(port) = opt.port {
 		port
 	} else {
@@ -81,6 +92,8 @@ fn main() -> std::io::Result<()> {
 			"6451".into()
 		}
 	};
+
+	writeln_dimmed(&format!("Trying to connect to [{}]:{}...", ip, port)).unwrap();
 
 	let logged_in;
 	let username;
@@ -156,7 +169,7 @@ fn main() -> std::io::Result<()> {
 			cnt_str = alias.to_string();
 		}
 
-		writeln_dimmed(&format!("Connected to {}:{} ({})", ip, port, serial_number.to_string())).unwrap();
+		writeln_dimmed(&format!("Connected to [{}]:{} ({})", ip, port, serial_number.to_string())).unwrap();
 
 		if logged_in {
 			writeln_dimmed(&format!("Successfully authenticated as user {}", username)).unwrap();
@@ -258,6 +271,26 @@ fn main() -> std::io::Result<()> {
 	}
 
 	Ok(())
+}
+
+fn get_ipv6_link_local_from_serial(serial: u32) -> String {
+	let network_interfaces = NetworkInterface::show().unwrap();
+
+	let mut interface = None;
+
+    for itf in network_interfaces.iter() {
+		if let Some(addr) = itf.addr {
+			if addr.ip().is_ipv6() && !addr.ip().is_loopback() {
+				if &addr.ip().to_string()[..6] == "fe80::" {
+					interface = Some(itf.name.clone());
+					break;
+				}
+			}
+		}
+    }
+
+	let hex = format!("{:04x}", serial);
+	format!("fe80::b5:b1ff:fe{}:{}%{}", &hex[..2], &hex[2..], interface.unwrap())
 }
 
 fn parse_shortcuts(command: &str) -> &str {
