@@ -1,6 +1,6 @@
-use std::net::TcpStream;
-
+use std::io::Error;
 use std::io::{Read, Write};
+use std::net::TcpStream;
 
 use data_encoding::HEXLOWER;
 use ring::digest::SHA512;
@@ -163,8 +163,8 @@ impl Bone {
 		}
 	}
 
-	pub fn connect(&mut self) {
-		let stream = TcpStream::connect(&self.get_connection_string()).unwrap();
+	pub fn connect(&mut self) -> Result<(), Error> {
+		let stream = TcpStream::connect(&self.get_connection_string())?;
 
 		if self.use_ssl {
 			let config = rustls::ClientConfig::builder()
@@ -180,6 +180,8 @@ impl Bone {
 		} else {
 			self.stream = Some(Box::new(stream));
 		}
+
+		Ok(())
 	}
 
 	pub fn send_raw_command(

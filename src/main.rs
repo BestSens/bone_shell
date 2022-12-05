@@ -94,20 +94,30 @@ fn main() -> std::io::Result<()> {
 	let username;
 
 	let mut bone1 = Bone::new(&ip, &port, opt.msgpack, !opt.unencrypted);
-	bone1.connect();
+	match bone1.connect() {
+		Err(e) => {
+			eprintln!("Error connecting to [{ip}]:{port}: {e}");
+			std::process::exit(1)
+		}
+		_ => (),
+	}
 
 	if let Some(username_tmp) = &opt.username {
 		if let Some(password) = &opt.password {
 			let result = bone1.login(username_tmp, password);
 			match result {
-				Err(msg) => panic!("Error while logging in: {}", msg),
+				Err(msg) => {
+					eprintln!("Error while logging in: {msg}");
+					std::process::exit(1)
+				}
 				_ => {
 					logged_in = true;
 					username = String::from(username_tmp);
 				}
 			}
 		} else {
-			panic!("--username supplied without --password");
+			eprintln!("--username supplied without --password");
+			std::process::exit(1)
 		}
 	} else {
 		logged_in = false;
