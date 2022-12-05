@@ -2,11 +2,11 @@ use std::net::TcpStream;
 
 use std::io::{Read, Write};
 
-use ring::digest::SHA512;
 use data_encoding::HEXLOWER;
+use ring::digest::SHA512;
 
-extern crate rmpv;
 extern crate rmp_serde;
+extern crate rmpv;
 extern crate serde_json;
 
 use serde_json::Value;
@@ -15,7 +15,7 @@ use rustls;
 
 use std::sync::Arc;
 
-trait IsStream: Read + Write{}
+trait IsStream: Read + Write {}
 impl<T: Read + Write> IsStream for T {}
 
 pub struct Bone {
@@ -29,23 +29,23 @@ pub struct Bone {
 struct SkipServerVerification;
 
 impl SkipServerVerification {
-    fn new() -> Arc<Self> {
-        Arc::new(Self)
-    }
+	fn new() -> Arc<Self> {
+		Arc::new(Self)
+	}
 }
 
 impl rustls::client::ServerCertVerifier for SkipServerVerification {
-    fn verify_server_cert(
-        &self,
-        _end_entity: &rustls::Certificate,
-        _intermediates: &[rustls::Certificate],
-        _server_name: &rustls::ServerName,
-        _scts: &mut dyn Iterator<Item = &[u8]>,
-        _ocsp_response: &[u8],
-        _now: std::time::SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
-        Ok(rustls::client::ServerCertVerified::assertion())
-    }
+	fn verify_server_cert(
+		&self,
+		_end_entity: &rustls::Certificate,
+		_intermediates: &[rustls::Certificate],
+		_server_name: &rustls::ServerName,
+		_scts: &mut dyn Iterator<Item = &[u8]>,
+		_ocsp_response: &[u8],
+		_now: std::time::SystemTime,
+	) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+		Ok(rustls::client::ServerCertVerified::assertion())
+	}
 }
 
 impl Bone {
@@ -75,10 +75,10 @@ impl Bone {
 		let mut amp_buf: Vec<f32> = Vec::new();
 
 		for i in (0..buffer.len()).step_by(4) {
-			let data: u32 = buffer[i+3] as u32 + 
-							((buffer[i+2] as u32) << 8) +
-							((buffer[i+1] as u32) << 16) +
-							((buffer[i] as u32) << 24);
+			let data: u32 = buffer[i + 3] as u32
+				+ ((buffer[i + 2] as u32) << 8)
+				+ ((buffer[i + 1] as u32) << 16)
+				+ ((buffer[i] as u32) << 24);
 
 			let mut runtime: f32 = ((data & 0xfffff000) >> 12) as f32;
 			runtime /= 521.0;
@@ -103,11 +103,12 @@ impl Bone {
 		let mut temp: Vec<f32> = Vec::new();
 
 		for i in (0..buffer.len()).step_by(4) {
-			let data: u32 = buffer[i+3] as u32 + ((buffer[i+2] as u32) << 8) + ((buffer[i+1] as u32) << 16) + ((buffer[i] as u32) << 24);
+			let data: u32 = buffer[i + 3] as u32
+				+ ((buffer[i + 2] as u32) << 8)
+				+ ((buffer[i + 1] as u32) << 16)
+				+ ((buffer[i] as u32) << 24);
 
-			let float: f32 = unsafe {
-				std::mem::transmute(data)
-			};
+			let float: f32 = unsafe { std::mem::transmute(data) };
 
 			temp.push(float);
 		}
@@ -120,11 +121,12 @@ impl Bone {
 
 		for i in (0..buffer.len()).step_by(5) {
 			let channel: usize = buffer[i] as usize;
-			let data: u32 = buffer[i+4] as u32 + ((buffer[i+3] as u32) << 8) + ((buffer[i+2] as u32) << 16) + ((buffer[i+1] as u32) << 24);
+			let data: u32 = buffer[i + 4] as u32
+				+ ((buffer[i + 3] as u32) << 8)
+				+ ((buffer[i + 2] as u32) << 16)
+				+ ((buffer[i + 1] as u32) << 24);
 
-			let float: f32 = unsafe {
-				std::mem::transmute(data)
-			};
+			let float: f32 = unsafe { std::mem::transmute(data) };
 
 			temp[channel].push(float);
 		}
@@ -134,7 +136,7 @@ impl Bone {
 			if x.len() > 0 {
 				output_vec.push((format!("channel {}", i), x.clone()));
 			}
-			
+
 			i += 1;
 		}
 	}
@@ -142,7 +144,7 @@ impl Bone {
 	fn calc_dv(buffer: &Vec<u8>) -> Vec<f32> {
 		let mut out = Vec::new();
 		for i in (0..buffer.len()).step_by(3) {
-			let s = String::from_utf8(buffer[i..i+3].to_vec()).unwrap();
+			let s = String::from_utf8(buffer[i..i + 3].to_vec()).unwrap();
 			let dv = usize::from_str_radix(&s, 16).unwrap();
 			let dv = (dv as f32 - 2048.) / 4096. * 5.;
 			out.push(dv);
@@ -171,7 +173,8 @@ impl Bone {
 				.with_no_client_auth();
 
 			let server_name = "bone".try_into().unwrap();
-			let rustls_connection = rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
+			let rustls_connection =
+				rustls::ClientConnection::new(Arc::new(config), server_name).unwrap();
 			let tls_stream = rustls::StreamOwned::new(rustls_connection, stream);
 			self.stream = Some(Box::new(tls_stream));
 		} else {
@@ -179,14 +182,17 @@ impl Bone {
 		}
 	}
 
-	pub fn send_raw_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<u8>), String> {
+	pub fn send_raw_command(
+		&mut self,
+		command: &json::JsonValue,
+	) -> Result<(i32, Vec<u8>), String> {
 		if let Some(ref mut stream) = self.stream {
 			let send_data;
 
 			if !self.enable_msgpack {
 				let s = String::from(command.dump());
 				send_data = s.as_bytes().to_vec();
-			} else { 
+			} else {
 				let command: Value = match serde_json::from_str(&command.dump()) {
 					Ok(n) => n,
 					Err(err) => return Err(err.to_string()),
@@ -211,10 +217,10 @@ impl Bone {
 			let mut last_position = [0; 4];
 			stream.read_exact(&mut last_position).unwrap();
 
-			let last_position: i32 = last_position[3] as i32 + 
-									((last_position[2] as i32) <<  8) + 
-									((last_position[1] as i32) << 16) + 
-									((last_position[0] as i32) << 24); 
+			let last_position: i32 = last_position[3] as i32
+				+ ((last_position[2] as i32) << 8)
+				+ ((last_position[1] as i32) << 16)
+				+ ((last_position[0] as i32) << 24);
 
 			let response_len = response_len - 4;
 
@@ -232,7 +238,10 @@ impl Bone {
 		}
 	}
 
-	pub fn send_sync_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
+	pub fn send_sync_command(
+		&mut self,
+		command: &json::JsonValue,
+	) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
 		let mut filter: Vec<String> = Vec::new();
 
 		if command["payload"]["filter"].is_array() {
@@ -240,7 +249,12 @@ impl Bone {
 				filter.push(a.to_string());
 			}
 		} else {
-			filter = vec!(String::from("saw"), String::from("int2"), String::from("coe"), String::from("int"));
+			filter = vec![
+				String::from("saw"),
+				String::from("int2"),
+				String::from("coe"),
+				String::from("int"),
+			];
 		}
 
 		let (last_position, buffer) = self.send_raw_command(command).unwrap();
@@ -251,8 +265,12 @@ impl Bone {
 
 		for current in filter {
 			match &current[..] {
-				"saw" => Bone::calc_saw(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect),
-				_ => Bone::calc_f32(&buffer[pos..pos+split_val].to_vec(), &mut ret_vect, &current),
+				"saw" => Bone::calc_saw(&buffer[pos..pos + split_val].to_vec(), &mut ret_vect),
+				_ => Bone::calc_f32(
+					&buffer[pos..pos + split_val].to_vec(),
+					&mut ret_vect,
+					&current,
+				),
 			}
 
 			pos += split_val;
@@ -261,7 +279,10 @@ impl Bone {
 		Ok((last_position, ret_vect))
 	}
 
-	pub fn send_ks_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
+	pub fn send_ks_command(
+		&mut self,
+		command: &json::JsonValue,
+	) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
 		let mut command = command.clone();
 		command["payload"]["float"] = true.into();
 
@@ -281,7 +302,10 @@ impl Bone {
 		Ok((last_position, ret_vect))
 	}
 
-	pub fn send_ks_sync_command(&mut self, command: &json::JsonValue) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
+	pub fn send_ks_sync_command(
+		&mut self,
+		command: &json::JsonValue,
+	) -> Result<(i32, Vec<(String, Vec<f32>)>), String> {
 		let (last_position, buffer) = self.send_raw_command(command).unwrap();
 
 		let mut ret_vect = Vec::new();
@@ -298,7 +322,7 @@ impl Bone {
 			if !self.enable_msgpack {
 				let s = String::from(command.dump());
 				send_data = s.as_bytes().to_vec();
-			} else { 
+			} else {
 				let command: Value = match serde_json::from_str(&command.dump()) {
 					Ok(n) => n,
 					Err(err) => return Err(err.to_string()),
@@ -340,7 +364,7 @@ impl Bone {
 			if !self.enable_msgpack {
 				let s = String::from(command.dump());
 				send_data = s.as_bytes().to_vec();
-			} else { 
+			} else {
 				let command: Value = match serde_json::from_str(&command.dump()) {
 					Ok(n) => n,
 					Err(err) => return Err(err.to_string()),
@@ -390,7 +414,7 @@ impl Bone {
 	}
 
 	pub fn login(&mut self, username: &str, password: &str) -> Result<String, String> {
-		let command = json::object!{
+		let command = json::object! {
 			"command" => "request_token"
 		};
 
@@ -398,7 +422,7 @@ impl Bone {
 		let token = &response["payload"]["token"].to_string();
 		let signed_token = Bone::get_signed_token(&password, &token);
 
-		let command = json::object!{
+		let command = json::object! {
 			"command" => "auth",
 			"payload" => json::object!{
 				"signed_token" => signed_token,
