@@ -350,6 +350,8 @@ fn parse_shortcuts(command: &str) -> &str {
 	match command {
 		"cd" => "channel_data",
 		"ca" => "channel_attributes",
+		"sn" => "serial_number",
+		"bt" => "board_temp",
 		&_ => command,
 	}
 }
