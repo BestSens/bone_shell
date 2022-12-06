@@ -355,12 +355,14 @@ fn parse_shortcuts(command: &str) -> &str {
 }
 
 fn parse_parameters(command: &str, argument: &str, api: u32) -> String {
-	if argument == "--all" {
-		json::object! {"command": command.clone(), "payload": {"all": true}, "api": api}.dump()
-	} else if argument == "--list" {
-		json::object!{"command": command.clone(), "payload": {"all": true, "filter": [""]}, "api": api}.dump()
-	} else {
-		json::object! {"command": command.clone(), "payload": {"name": argument}, "api": api}.dump()
+	match command {
+		"channel_data" | "channel_attributes" => match argument {
+			"--all" => json::object! {"command": command.clone(), "payload": {"all": true}, "api": api}.dump(),
+			"--hidden" => json::object!{"command": command.clone(), "payload": {"all": true, "hidden": true}, "api": api}.dump(),
+			"--list" => json::object!{"command": command.clone(), "payload": {"all": true, "filter": [""], "hidden": true}, "api": api}.dump(),
+			&_ => json::object! {"command": command.clone(), "payload": {"name": argument}, "api": api}.dump(),
+		},
+		&_ => json::object! {"command": command.clone(), "payload": {"name": argument}, "api": api}.dump(),
 	}
 }
 

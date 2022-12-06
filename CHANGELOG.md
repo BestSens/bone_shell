@@ -1,5 +1,6 @@
 ## 1.1.1 (unreleased)
 - Add typed input to history instead of generated json
+- Add shortcut for hidden values with `--hidden`
 
 ## 1.1.0 (04.12.2022)
 - Add shortcuts for `channel_data` and `chanel_attributes`
