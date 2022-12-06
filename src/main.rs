@@ -1,28 +1,23 @@
+use atty::Stream;
+use bone_api::Bone;
+use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use std::io::*;
 use std::path::PathBuf;
-use structopt::StructOpt;
-use bone_api::Bone;
-use atty::Stream;
 use std::time::Instant;
-use network_interface::{NetworkInterface, NetworkInterfaceConfig};
+use structopt::StructOpt;
 
 use crossterm::{
-    execute,
-    style::{Color, Print, ResetColor, SetForegroundColor, SetAttribute, Attribute},
-    Result,
+	execute,
+	style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
 	terminal::size,
+	Result,
 };
 
-use rustyline::{
-	Editor,
-	Config,
-	CompletionType,
-	error::ReadlineError,
-};
+use rustyline::{error::ReadlineError, CompletionType, Config, Editor};
 
-extern crate statistical;
-extern crate rpassword;
 extern crate dirs;
+extern crate rpassword;
+extern crate statistical;
 
 use textplots::{Chart, Plot, Shape};
 
@@ -64,7 +59,7 @@ pub struct Opt {
 	#[structopt(long)]
 	serial: Option<u32>,
 
-	command: Option<String>
+	command: Option<String>,
 }
 
 fn main() -> std::io::Result<()> {
@@ -99,17 +94,30 @@ fn main() -> std::io::Result<()> {
 	let username;
 
 	let mut bone1 = Bone::new(&ip, &port, opt.msgpack, !opt.unencrypted);
-	bone1.connect();
-	
+	match bone1.connect() {
+		Err(e) => {
+			eprintln!("Error connecting to [{ip}]:{port}: {e}");
+			std::process::exit(1)
+		}
+		_ => (),
+	}
+
 	if let Some(username_tmp) = &opt.username {
 		if let Some(password) = &opt.password {
 			let result = bone1.login(username_tmp, password);
 			match result {
-				Err(msg) => panic!("Error while logging in: {}", msg),
-				_ => { logged_in = true; username = String::from(username_tmp); },
+				Err(msg) => {
+					eprintln!("Error while logging in: {msg}");
+					std::process::exit(1)
+				}
+				_ => {
+					logged_in = true;
+					username = String::from(username_tmp);
+				}
 			}
 		} else {
-			panic!("--username supplied without --password");
+			eprintln!("--username supplied without --password");
+			std::process::exit(1)
 		}
 	} else {
 		logged_in = false;
@@ -119,14 +127,26 @@ fn main() -> std::io::Result<()> {
 	if let Some(command) = &opt.command {
 		// command mode
 		let command = json::parse(&command).unwrap();
-		command_operations(&mut bone1, &command, !opt.no_pretty, atty::is(Stream::Stdout) && opt.response_time, false);
+		command_operations(
+			&mut bone1,
+			&command,
+			!opt.no_pretty,
+			atty::is(Stream::Stdout) && opt.response_time,
+			false,
+		);
 	} else if !atty::is(Stream::Stdin) {
 		// pipe mode
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
 
 		let command = json::parse(&command).unwrap();
-		command_operations(&mut bone1, &command, !opt.no_pretty, atty::is(Stream::Stdout) && opt.response_time, false);
+		command_operations(
+			&mut bone1,
+			&command,
+			!opt.no_pretty,
+			atty::is(Stream::Stdout) && opt.response_time,
+			false,
+		);
 	} else {
 		// shell mode
 
@@ -146,13 +166,13 @@ fn main() -> std::io::Result<()> {
 		if let Some(path) = history_path.to_str() {
 			match rl.load_history(path) {
 				Ok(_) => (),
-				Err(_) => ()
+				Err(_) => (),
 			}
 		}
 
-		let data = match bone1.send_command(&json::object!{"command" => "serial_number"}) {
+		let data = match bone1.send_command(&json::object! {"command" => "serial_number"}) {
 			Ok(n) => n,
-			Err(_err) => json::object!{"error" => "missing"},
+			Err(_err) => json::object! {"error" => "missing"},
 		};
 
 		let alias = &data["payload"]["alias"];
@@ -169,7 +189,13 @@ fn main() -> std::io::Result<()> {
 			cnt_str = alias.to_string();
 		}
 
-		writeln_dimmed(&format!("Connected to [{}]:{} ({})", ip, port, serial_number.to_string())).unwrap();
+		writeln_dimmed(&format!(
+			"Connected to [{}]:{} ({})",
+			ip,
+			port,
+			serial_number.to_string()
+		))
+		.unwrap();
 
 		if logged_in {
 			writeln_dimmed(&format!("Successfully authenticated as user {}", username)).unwrap();
@@ -182,18 +208,20 @@ fn main() -> std::io::Result<()> {
 			match readline {
 				Ok(line) => {
 					command = line;
-				},
+				}
 				Err(ReadlineError::Interrupted) => {
 					command = "quit".into();
-				},
+				}
 				Err(ReadlineError::Eof) => {
 					command = "quit".into();
-				},
+				}
 				Err(err) => {
 					println!("Error: {:?}", err);
-					break
+					break;
 				}
 			}
+
+			let command_in = command.clone();
 
 			if let Some(first_char) = command.chars().next() {
 				if first_char != '{' && first_char != '[' {
@@ -201,7 +229,7 @@ fn main() -> std::io::Result<()> {
 					command.truncate(tmp_len);
 
 					if command == "q" || command == "quit" || command == "exit" {
-						break
+						break;
 					}
 
 					if command == "login" {
@@ -216,8 +244,14 @@ fn main() -> std::io::Result<()> {
 
 						let result = bone1.login(&username, &password);
 						match result {
-							Err(msg) => write_stderr(&format!("Error while logging in: {}", msg)).unwrap(),
-							_ => writeln_dimmed(&format!("Successfully authenticated as user {}", username)).unwrap(),
+							Err(msg) => {
+								write_stderr(&format!("Error while logging in: {}", msg)).unwrap()
+							}
+							_ => writeln_dimmed(&format!(
+								"Successfully authenticated as user {}",
+								username
+							))
+							.unwrap(),
 						}
 
 						continue;
@@ -236,16 +270,24 @@ fn main() -> std::io::Result<()> {
 								} else {
 									let payload = match json::parse(s.1) {
 										Ok(n) => n,
-										Err(err) => { write_stderr(&format!("error parsing payload: {}", err)).unwrap(); continue; },
+										Err(err) => {
+											write_stderr(&format!(
+												"error parsing payload: {}",
+												err
+											))
+											.unwrap();
+											continue;
+										}
 									};
 									command = json::object!{"command": command_name.clone(), "payload": payload, "api": opt.api}.dump();
 								}
 							}
-						},
+						}
 						None => {
 							let command_name = parse_shortcuts(&command);
-							command = json::object!{"command": command_name, "api": opt.api}.dump(); 
-						},
+							command =
+								json::object! {"command": command_name, "api": opt.api}.dump();
+						}
 					}
 				}
 			} else {
@@ -256,8 +298,14 @@ fn main() -> std::io::Result<()> {
 			match result {
 				Err(msg) => write_stderr(&format!("invalid input: {}", msg)).unwrap(),
 				Ok(command) => {
-					command_operations(&mut bone1, &command, !opt.no_pretty, opt.response_time, true);
-					rl.add_history_entry(command.dump());
+					command_operations(
+						&mut bone1,
+						&command,
+						!opt.no_pretty,
+						opt.response_time,
+						true,
+					);
+					rl.add_history_entry(command_in);
 				}
 			}
 		}
@@ -265,7 +313,7 @@ fn main() -> std::io::Result<()> {
 		if let Some(path) = history_path.to_str() {
 			match rl.append_history(path) {
 				Ok(_) => (),
-				Err(_) => println!("Error saving history to {path}")
+				Err(_) => println!("Error saving history to {path}"),
 			}
 		}
 	}
@@ -278,7 +326,7 @@ fn get_ipv6_link_local_from_serial(serial: u32) -> String {
 
 	let mut interface = None;
 
-    for itf in network_interfaces.iter() {
+	for itf in network_interfaces.iter() {
 		if let Some(addr) = itf.addr {
 			if addr.ip().is_ipv6() && !addr.ip().is_loopback() {
 				if &addr.ip().to_string()[..6] == "fe80::" {
@@ -287,40 +335,52 @@ fn get_ipv6_link_local_from_serial(serial: u32) -> String {
 				}
 			}
 		}
-    }
+	}
 
 	let hex = format!("{:04x}", serial);
-	format!("fe80::b5:b1ff:fe{}:{}%{}", &hex[..2], &hex[2..], interface.unwrap())
+	format!(
+		"fe80::b5:b1ff:fe{}:{}%{}",
+		&hex[..2],
+		&hex[2..],
+		interface.unwrap()
+	)
 }
 
 fn parse_shortcuts(command: &str) -> &str {
 	match command {
 		"cd" => "channel_data",
 		"ca" => "channel_attributes",
+		"sn" => "serial_number",
+		"bt" => "board_temp",
 		&_ => command,
 	}
 }
 
 fn parse_parameters(command: &str, argument: &str, api: u32) -> String {
-	if argument == "--all" {
-		json::object!{"command": command.clone(), "payload": {"all": true}, "api": api}.dump()
-	} else if argument == "--list" {
-		json::object!{"command": command.clone(), "payload": {"all": true, "filter": [""]}, "api": api}.dump()
-	} else {
-		json::object!{"command": command.clone(), "payload": {"name": argument}, "api": api}.dump()
+	match command {
+		"channel_data" | "channel_attributes" => match argument {
+			"--all" => json::object! {"command": command.clone(), "payload": {"all": true}, "api": api}.dump(),
+			"--hidden" => json::object!{"command": command.clone(), "payload": {"all": true, "hidden": true}, "api": api}.dump(),
+			"--list" => json::object!{"command": command.clone(), "payload": {"all": true, "filter": [""], "hidden": true}, "api": api}.dump(),
+			&_ => json::object! {"command": command.clone(), "payload": {"name": argument}, "api": api}.dump(),
+		},
+		"sync" | "sync_json" => match argument {
+			&_ => json::object! {"command": command.clone(), "payload": {"filter": [argument]}, "api": api}.dump(),
+		},
+		&_ => json::object! {"command": command.clone(), "api": api}.dump(),
 	}
 }
 
 fn get_term_size() -> (u32, u32) {
 	match size() {
 		Ok((w, _)) => (u32::from(w) * 2 - 50, 80u32),
-		_ => (200u32, 80u32)
+		_ => (200u32, 80u32),
 	}
 }
 
 fn create_xy<T: Clone>(data: &[T], dt: f32) -> Vec<(f32, T)> {
 	let mut out = Vec::new();
-	
+
 	for t in 0..data.len() {
 		out.push((t as f32 * dt, data[t].clone()));
 	}
@@ -328,7 +388,13 @@ fn create_xy<T: Clone>(data: &[T], dt: f32) -> Vec<(f32, T)> {
 	out
 }
 
-fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, response_time: bool, echo_command: bool) {
+fn command_operations(
+	bone: &mut Bone,
+	command: &json::JsonValue,
+	pretty: bool,
+	response_time: bool,
+	echo_command: bool,
+) {
 	if echo_command {
 		writeln_dimmed(&command.dump()).unwrap();
 	}
@@ -340,7 +406,7 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 		duration = start.elapsed().as_millis();
 
 		let cycle_time = {
-			let parsed = bone.send_command(&json::object!{"command" => "cycle_time"});
+			let parsed = bone.send_command(&json::object! {"command" => "cycle_time"});
 
 			match parsed {
 				Ok(n) => match n["payload"]["cycle_time"].as_number() {
@@ -357,7 +423,7 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 		duration = start.elapsed().as_millis();
 
 		let cycle_time = {
-			let parsed = bone.send_command(&json::object!{"command" => "ks_cycle_time"});
+			let parsed = bone.send_command(&json::object! {"command" => "ks_cycle_time"});
 
 			match parsed {
 				Ok(n) => match n["payload"]["cycle_time"].as_number() {
@@ -374,7 +440,7 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 		duration = start.elapsed().as_millis();
 
 		let cycle_time = {
-			let parsed = bone.send_command(&json::object!{"command" => "ks_cycle_time"});
+			let parsed = bone.send_command(&json::object! {"command" => "ks_cycle_time"});
 
 			match parsed {
 				Ok(n) => match n["payload"]["cycle_time"].as_number() {
@@ -416,25 +482,29 @@ fn command_operations(bone: &mut Bone, command: &json::JsonValue, pretty: bool, 
 }
 
 fn writeln_dimmed(output: &str) -> Result<()> {
-    execute!(
-        stdout(),
-        SetForegroundColor(Color::Rgb{r: 150, g: 150, b: 150}),
+	execute!(
+		stdout(),
+		SetForegroundColor(Color::Rgb {
+			r: 150,
+			g: 150,
+			b: 150
+		}),
 		SetAttribute(Attribute::Italic),
-        Print(format!("# {}\n", output)),
-        ResetColor
-    )?;
+		Print(format!("# {}\n", output)),
+		ResetColor
+	)?;
 
 	Ok(())
 }
 
 fn write_stderr(output: &str) -> Result<()> {
 	execute!(
-        stderr(),
-        SetForegroundColor(Color::Red),
+		stderr(),
+		SetForegroundColor(Color::Red),
 		SetAttribute(Attribute::Bold),
-        Print(format!("{}\n", output)),
-        ResetColor
-    )?;
+		Print(format!("{}\n", output)),
+		ResetColor
+	)?;
 
 	Ok(())
 }
@@ -448,11 +518,20 @@ fn print_raw(data: &Vec<(String, Vec<f32>)>, cycle_time: f32) {
 			let stdev = statistical::standard_deviation(&v.1[..], None);
 
 			println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
-			Chart::new(term_size.0, term_size.1, 0., data[0].1.len() as f32 * cycle_time)
-				.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
-				.nice();
+			Chart::new(
+				term_size.0,
+				term_size.1,
+				0.,
+				data[0].1.len() as f32 * cycle_time,
+			)
+			.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
+			.nice();
 		} else {
-			write_stderr(&format!("{}: not enough data points returned to plot graph", v.0)).unwrap();
+			write_stderr(&format!(
+				"{}: not enough data points returned to plot graph",
+				v.0
+			))
+			.unwrap();
 		}
 	}
 }

@@ -6,6 +6,7 @@ variables:
 
 stages:
     - build
+    - deploy
     - release
 
 .artifacts: &artifacts
@@ -36,12 +37,30 @@ build:
         - cp target/arm-unknown-linux-gnueabihf/release/bone_shell ./bone_shell_arm
         - cp target/x86_64-pc-windows-gnu/release/bone_shell.exe ./bone_shell_x86_64.exe
 
+## Create persistent archives #########################################################################################
+deploy:
+    stage: deploy
+    when: on_success
+    only:
+        - tags
+    variables:
+        GIT_STRATEGY: none
+    script:
+        - echo GE_JOB_ID=$CI_JOB_ID >> generate_executables.env
+    artifacts:
+        <<: *artifacts
+        expire_in:
+        reports:
+            dotenv: generate_executables.env
+    dependencies:
+        - build
+
 ## Release ############################################################################################################
 release_job:
     stage: release
     image: registry.gitlab.com/gitlab-org/release-cli:latest
     needs:
-        - job: build
+        - job: deploy
           artifacts: true
     only:
         - tags
@@ -52,3 +71,11 @@ release_job:
         description: 'Automatically created'
         tag_name: '$CI_COMMIT_TAG'
         ref: '$CI_COMMIT_TAG'
+        assets:
+            links:
+                - name: "Linux x86_64"
+                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell"
+                - name: "Linux ARM"
+                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_arm"
+                - name: "Windows x86_64"
+                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_x86_64.exe"

@@ -1,3 +1,9 @@
+## 1.1.1 (06.12.2022)
+- Add typed input to history instead of generated json
+- Add shortcut for hidden values with `--hidden`
+- Add shortcuts `sn` for `serial_number` and `bt` for `board_temp`
+- Add shortcut for `sync` command
+
 ## 1.1.0 (04.12.2022)
 - Add shortcuts for `channel_data` and `chanel_attributes`
 - Update libraries
