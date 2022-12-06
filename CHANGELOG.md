@@ -1,4 +1,4 @@
-## 1.1.1 (unreleased)
+## 1.1.1 (06.12.2022)
 - Add typed input to history instead of generated json
 - Add shortcut for hidden values with `--hidden`
 - Add shortcuts `sn` for `serial_number` and `bt` for `board_temp`
