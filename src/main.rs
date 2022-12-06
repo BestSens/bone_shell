@@ -221,6 +221,8 @@ fn main() -> std::io::Result<()> {
 				}
 			}
 
+			let command_in = command.clone();
+
 			if let Some(first_char) = command.chars().next() {
 				if first_char != '{' && first_char != '[' {
 					let tmp_len = command.trim_end().len();
@@ -303,7 +305,7 @@ fn main() -> std::io::Result<()> {
 						opt.response_time,
 						true,
 					);
-					rl.add_history_entry(command.dump());
+					rl.add_history_entry(command_in);
 				}
 			}
 		}
