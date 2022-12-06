@@ -78,10 +78,12 @@ fn main() -> std::io::Result<()> {
 		ip = opt.connect;
 	}
 
+	let unencrypted = if ip == "localhost" { true } else { opt.unencrypted };
+
 	let port = if let Some(port) = opt.port {
 		port
 	} else {
-		if opt.unencrypted {
+		if unencrypted {
 			"6450".into()
 		} else {
 			"6451".into()
@@ -93,7 +95,7 @@ fn main() -> std::io::Result<()> {
 	let logged_in;
 	let username;
 
-	let mut bone1 = Bone::new(&ip, &port, opt.msgpack, !opt.unencrypted);
+	let mut bone1 = Bone::new(&ip, &port, opt.msgpack, !unencrypted);
 	match bone1.connect() {
 		Err(e) => {
 			eprintln!("Error connecting to [{ip}]:{port}: {e}");
