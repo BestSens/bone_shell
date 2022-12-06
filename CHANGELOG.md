@@ -1,6 +1,7 @@
 ## 1.1.2 (unreleased)
 - Add history element even if parsing fails
 - Disable SSL when connecting to localhost
+- Fix crash when only NaNs are returned from raw command
 
 ## 1.1.1 (06.12.2022)
 - Add typed input to history instead of generated json

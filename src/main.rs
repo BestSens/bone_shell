@@ -15,9 +15,9 @@ use crossterm::{
 
 use rustyline::{error::ReadlineError, CompletionType, Config, Editor};
 
-extern crate dirs;
-extern crate rpassword;
-extern crate statistical;
+use dirs;
+use rpassword;
+use statistical;
 
 use textplots::{Chart, Plot, Shape};
 
@@ -78,7 +78,11 @@ fn main() -> std::io::Result<()> {
 		ip = opt.connect;
 	}
 
-	let unencrypted = if ip == "localhost" { true } else { opt.unencrypted };
+	let unencrypted = if ip == "localhost" {
+		true
+	} else {
+		opt.unencrypted
+	};
 
 	let port = if let Some(port) = opt.port {
 		port
@@ -516,17 +520,23 @@ fn print_raw(data: &Vec<(String, Vec<f32>)>, cycle_time: f32) {
 	for v in data {
 		if v.1.len() > 1 {
 			let mean = statistical::mean(&v.1[..]);
-			let stdev = statistical::standard_deviation(&v.1[..], None);
 
-			println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
-			Chart::new(
-				term_size.0,
-				term_size.1,
-				0.,
-				data[0].1.len() as f32 * cycle_time,
-			)
-			.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
-			.nice();
+			if mean.is_finite() {
+				let stdev = statistical::standard_deviation(&v.1[..], None);
+	
+				println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
+
+				Chart::new(
+					term_size.0,
+					term_size.1,
+					0.,
+					data[0].1.len() as f32 * cycle_time,
+				)
+				.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
+				.nice();
+			} else {
+				println!("{}: only NaNs returned", v.0);
+			}
 		} else {
 			write_stderr(&format!(
 				"{}: not enough data points returned to plot graph",
