@@ -5,13 +5,7 @@ use std::net::TcpStream;
 use data_encoding::HEXLOWER;
 use ring::digest::SHA512;
 
-extern crate rmp_serde;
-extern crate rmpv;
-extern crate serde_json;
-
 use serde_json::Value;
-
-use rustls;
 
 use std::sync::Arc;
 

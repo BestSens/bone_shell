@@ -14,11 +14,6 @@ use crossterm::{
 };
 
 use rustyline::{error::ReadlineError, CompletionType, Config, Editor};
-
-use dirs;
-use rpassword;
-use statistical;
-
 use textplots::{Chart, Plot, Shape};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -523,7 +518,7 @@ fn print_raw(data: &Vec<(String, Vec<f32>)>, cycle_time: f32) {
 
 			if mean.is_finite() {
 				let stdev = statistical::standard_deviation(&v.1[..], None);
-	
+
 				println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
 
 				Chart::new(
