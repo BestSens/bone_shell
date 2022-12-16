@@ -367,6 +367,7 @@ fn parse_parameters(command: &str, argument: &str, api: u32) -> String {
 		"sync" | "sync_json" => match argument {
 			&_ => json::object! {"command": command.clone(), "payload": {"filter": [argument]}, "api": api}.dump(),
 		},
+		"remove_user" => json::object! {"command": command.clone(), "payload": {"username": argument}, "api": api}.dump(),
 		&_ => json::object! {"command": command.clone(), "api": api}.dump(),
 	}
 }
