@@ -10,7 +10,6 @@ use crossterm::{
 	execute,
 	style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
 	terminal::size,
-	Result,
 };
 
 use rustyline::{error::ReadlineError, CompletionType, Config, Editor};
@@ -280,7 +279,7 @@ fn main() -> std::io::Result<()> {
 											continue;
 										}
 									};
-									command = json::object!{"command": command_name.clone(), "payload": payload, "api": opt.api}.dump();
+									command = json::object!{"command": command_name, "payload": payload, "api": opt.api}.dump();
 								}
 							}
 						}
@@ -359,16 +358,16 @@ fn parse_shortcuts(command: &str) -> &str {
 fn parse_parameters(command: &str, argument: &str, api: u32) -> String {
 	match command {
 		"channel_data" | "channel_attributes" => match argument {
-			"--all" => json::object! {"command": command.clone(), "payload": {"all": true}, "api": api}.dump(),
-			"--hidden" => json::object!{"command": command.clone(), "payload": {"all": true, "hidden": true}, "api": api}.dump(),
-			"--list" => json::object!{"command": command.clone(), "payload": {"all": true, "filter": [""], "hidden": true}, "api": api}.dump(),
-			&_ => json::object! {"command": command.clone(), "payload": {"name": argument}, "api": api}.dump(),
+			"--all" => json::object! {"command": command, "payload": {"all": true}, "api": api}.dump(),
+			"--hidden" => json::object!{"command": command, "payload": {"all": true, "hidden": true}, "api": api}.dump(),
+			"--list" => json::object!{"command": command, "payload": {"all": true, "filter": [""], "hidden": true}, "api": api}.dump(),
+			&_ => json::object! {"command": command, "payload": {"name": argument}, "api": api}.dump(),
 		},
 		"sync" | "sync_json" => match argument {
-			&_ => json::object! {"command": command.clone(), "payload": {"filter": [argument]}, "api": api}.dump(),
+			&_ => json::object! {"command": command, "payload": {"filter": [argument]}, "api": api}.dump(),
 		},
-		"remove_user" => json::object! {"command": command.clone(), "payload": {"username": argument}, "api": api}.dump(),
-		&_ => json::object! {"command": command.clone(), "api": api}.dump(),
+		"remove_user" => json::object! {"command": command, "payload": {"username": argument}, "api": api}.dump(),
+		&_ => json::object! {"command": command, "api": api}.dump(),
 	}
 }
 
