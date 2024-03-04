@@ -29,5 +29,5 @@ rustyline = "10.0"
 dirs = "5.0"
 ring = "0.17"
 data-encoding = "2.5"
-rustls = { version = "0.23" }
+rustls = "0.23"
 network-interface = "0.1.5"
