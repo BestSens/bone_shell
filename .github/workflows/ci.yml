@@ -1,0 +1,65 @@
+name: Build
+on: [push]
+jobs:
+  arm-bemos-linux-musleabihf:
+    runs-on: ubuntu-latest
+    container: ghcr.io/bestsens/musl-build-image:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/            
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Setup
+        run: |
+          rustup default stable
+          rustup target add armv7-unknown-linux-musleabihf
+      - name: Build
+        env:
+          CC: arm-bemos-linux-musleabihf-gcc
+        run: |
+          cargo build --release --target=armv7-unknown-linux-musleabihf
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: armv7
+          path: |
+            target/armv7-unknown-linux-musleabihf/release/bone_shell
+            LICENSE
+  x86_64-linux-gnu:
+    runs-on: ubuntu-latest
+    container: rust:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup cache
+        uses: actions/cache@v4
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/            
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+      - name: Build
+        run: |
+         cargo build --release
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x86_64
+          path: |
+            target/release/bone_shell
+            LICENSE
