@@ -1,4 +1,4 @@
-image: docker.bestsens.de/bone/rust-build-image:master
+image: docker.bestsens.local/bone/rust-build-image:master
 
 variables:
     GIT_SUBMODULE_STRATEGY: recursive
@@ -26,16 +26,24 @@ build:
             - target
     artifacts:
         <<: *artifacts
-    before_script:
-        - mkdir -p ${CI_PROJECT_DIR}/.cargo
-        - cp -r /usr/local/cargo/config ${CI_PROJECT_DIR}/.cargo/config
     script:
         - cargo build --release
-        - cargo build --release --target=arm-unknown-linux-gnueabihf
         - cargo build --release --target=x86_64-pc-windows-gnu
         - cp target/release/bone_shell ./bone_shell
-        - cp target/arm-unknown-linux-gnueabihf/release/bone_shell ./bone_shell_arm
         - cp target/x86_64-pc-windows-gnu/release/bone_shell.exe ./bone_shell_x86_64.exe
+
+build-arm:
+    image: docker.bestsens.local/bone/musl-build-image
+    stage: build
+    cache:
+        paths:
+            - .cargo
+            - target
+    artifacts:
+        <<: *artifacts
+    script:
+        - CC=arm-bemos-linux-musleabihf-gcc cargo build --release --target=armv7-unknown-linux-musleabihf
+        - cp target/armv7-unknown-linux-musleabihf/release/bone_shell ./bone_shell_arm
 
 ## Create persistent archives #########################################################################################
 deploy:
@@ -74,8 +82,8 @@ release_job:
         assets:
             links:
                 - name: "Linux x86_64"
-                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell"
+                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell"
                 - name: "Linux ARM"
-                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_arm"
+                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_arm"
                 - name: "Windows x86_64"
-                  url: "https://gitlab.bestsens.de/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_x86_64.exe"
+                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_x86_64.exe"
