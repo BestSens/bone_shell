@@ -161,7 +161,7 @@ fn main() -> std::io::Result<()> {
 			.auto_add_history(false)
 			.build();
 
-		let mut rl = Editor::<()>::with_config(config).unwrap();
+		let mut rl = Editor::<(), _>::with_config(config).unwrap();
 
 		if let Some(path) = history_path.to_str() {
 			match rl.load_history(path) {
@@ -221,7 +221,7 @@ fn main() -> std::io::Result<()> {
 				}
 			}
 
-			rl.add_history_entry(command.clone());
+			let _ = rl.add_history_entry(command.clone());
 
 			if let Some(first_char) = command.chars().next() {
 				if first_char != '{' && first_char != '[' {
