@@ -1,4 +1,4 @@
-## 1.1.2 (unreleased)
+## 1.1.2 (05.03.2024)
 - Add history element even if parsing fails
 - Disable SSL when connecting to localhost
 - Fix crash when only NaNs are returned from raw command
