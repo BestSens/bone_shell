@@ -326,7 +326,8 @@ fn get_ipv6_link_local_from_serial(serial: u32) -> String {
 	let mut interface = None;
 
 	for itf in network_interfaces.iter() {
-		if let Some(addr) = itf.addr {
+		let addrs = &itf.addr;
+		for addr in addrs.iter() {
 			if addr.ip().is_ipv6() && !addr.ip().is_loopback() {
 				if &addr.ip().to_string()[..6] == "fe80::" {
 					interface = Some(itf.name.clone());
