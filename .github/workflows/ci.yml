@@ -55,13 +55,8 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - name: Setup
-        run: |
-          apt-get update
-          apt-get install -y cmake
       - name: Build
-        run: |
-         cargo build --release
+        run: cargo build --release
       - name: Clean up hierachy
         run: cp LICENSE target/release/LICENSE
       - name: Archive artifacts
@@ -88,15 +83,9 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-      - name: Setup
-        run: |
-          apt-get update
-          apt-get install -y mingw-w64 cmake
-          rustup target add x86_64-pc-windows-gnu          
+          restore-keys: ${{ runner.os }}-cargo-     
       - name: Build
-        run: |
-          cargo build --release --target=x86_64-pc-windows-gnu
+        run: cargo build --release --target=x86_64-pc-windows-gnu
       - name: Clean up hierachy
         run: cp LICENSE target/x86_64-pc-windows-gnu/release/LICENSE
       - name: Archive artifacts
@@ -104,5 +93,5 @@ jobs:
         with:
           name: x84_64-windows
           path: |
-            target/x86_64-pc-windows-gnu/release/bemos_s3uploader.exe
+            target/x86_64-pc-windows-gnu/release/bone_shell.exe
             target/x86_64-pc-windows-gnu/release/LICENSE
