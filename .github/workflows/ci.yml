@@ -28,13 +28,15 @@ jobs:
           CC: arm-bemos-linux-musleabihf-gcc
         run: |
           cargo build --release --target=armv7-unknown-linux-musleabihf
+      - name: Clean up hierachy
+        run: cp LICENSE target/armv7-unknown-linux-musleabihf/release/LICENSE
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: armv7
           path: |
             target/armv7-unknown-linux-musleabihf/release/bone_shell
-            LICENSE
+            target/armv7-unknown-linux-musleabihf/release/LICENSE
   x86_64-linux-gnu:
     runs-on: ubuntu-latest
     container: rust:latest
@@ -60,13 +62,15 @@ jobs:
       - name: Build
         run: |
          cargo build --release
+      - name: Clean up hierachy
+        run: cp LICENSE target/release/LICENSE
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: x86_64
           path: |
             target/release/bone_shell
-            LICENSE
+            target/release/LICENSE
   x86_64-pc-windows-gnu:
     runs-on: ubuntu-latest
     container: rust:latest
@@ -93,10 +97,12 @@ jobs:
       - name: Build
         run: |
           cargo build --release --target=x86_64-pc-windows-gnu
+      - name: Clean up hierachy
+        run: cp LICENSE target/x86_64-pc-windows-gnu/release/LICENSE
       - name: Archive artifacts
         uses: actions/upload-artifact@v4
         with:
           name: x84_64-windows
           path: |
             target/x86_64-pc-windows-gnu/release/bemos_s3uploader.exe
-            LICENSE
+            target/x86_64-pc-windows-gnu/release/LICENSE
