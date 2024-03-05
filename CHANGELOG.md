@@ -1,3 +1,5 @@
+## 1.1.3 (unreleased)
+
 ## 1.1.2 (05.03.2024)
 - Add history element even if parsing fails
 - Disable SSL when connecting to localhost
