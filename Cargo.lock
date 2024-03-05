@@ -55,6 +55,7 @@ version = "1.1.3"
 dependencies = [
  "atty",
  "crossterm",
+ "current_platform",
  "dirs",
  "hex",
  "json",
@@ -162,6 +163,12 @@ checksum = "acdd7c62a3665c7f6830a51635d9ac9b23ed385797f70a83bb8bafe9c572ab2b"
 dependencies = [
  "winapi",
 ]
+
+[[package]]
+name = "current_platform"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a74858bcfe44b22016cb49337d7b6f04618c58e5dbfdef61b06b8c434324a0bc"
 
 [[package]]
 name = "dirs"

@@ -12,6 +12,7 @@ use crossterm::{
 	terminal::size,
 };
 
+use current_platform::CURRENT_PLATFORM;
 use rustyline::{error::ReadlineError, CompletionType, Config, Editor};
 use textplots::{Chart, Plot, Shape};
 
@@ -325,25 +326,31 @@ fn get_ipv6_link_local_from_serial(serial: u32) -> String {
 
 	let mut interface = None;
 
-	for itf in network_interfaces.iter() {
-		let addrs = &itf.addr;
-		for addr in addrs.iter() {
-			if addr.ip().is_ipv6() && !addr.ip().is_loopback() {
-				if &addr.ip().to_string()[..6] == "fe80::" {
-					interface = Some(itf.name.clone());
-					break;
+	if !CURRENT_PLATFORM.to_string().contains("windows") {
+		for itf in network_interfaces.iter() {
+			let addrs = &itf.addr;
+			for addr in addrs.iter() {
+				if addr.ip().is_ipv6() && !addr.ip().is_loopback() {
+					if &addr.ip().to_string()[..6] == "fe80::" {
+						interface = Some(itf.name.clone());
+						break;
+					}
 				}
 			}
 		}
 	}
 
 	let hex = format!("{:04x}", serial);
-	format!(
-		"fe80::b5:b1ff:fe{}:{}%{}",
-		&hex[..2],
-		&hex[2..],
-		interface.unwrap()
-	)
+	if interface.is_some() {
+		format!(
+			"fe80::b5:b1ff:fe{}:{}%{}",
+			&hex[..2],
+			&hex[2..],
+			interface.unwrap()
+		)
+	} else {
+		format!("fe80::b5:b1ff:fe{}:{}", &hex[..2], &hex[2..])
+	}
 }
 
 fn parse_shortcuts(command: &str) -> &str {
