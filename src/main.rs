@@ -10,15 +10,9 @@ use crossterm::{
 	execute,
 	style::{Attribute, Color, Print, ResetColor, SetAttribute, SetForegroundColor},
 	terminal::size,
-	Result,
 };
 
 use rustyline::{error::ReadlineError, CompletionType, Config, Editor};
-
-extern crate dirs;
-extern crate rpassword;
-extern crate statistical;
-
 use textplots::{Chart, Plot, Shape};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
@@ -78,10 +72,16 @@ fn main() -> std::io::Result<()> {
 		ip = opt.connect;
 	}
 
+	let unencrypted = if ip == "localhost" {
+		true
+	} else {
+		opt.unencrypted
+	};
+
 	let port = if let Some(port) = opt.port {
 		port
 	} else {
-		if opt.unencrypted {
+		if unencrypted {
 			"6450".into()
 		} else {
 			"6451".into()
@@ -93,7 +93,7 @@ fn main() -> std::io::Result<()> {
 	let logged_in;
 	let username;
 
-	let mut bone1 = Bone::new(&ip, &port, opt.msgpack, !opt.unencrypted);
+	let mut bone1 = Bone::new(&ip, &port, opt.msgpack, !unencrypted);
 	match bone1.connect() {
 		Err(e) => {
 			eprintln!("Error connecting to [{ip}]:{port}: {e}");
@@ -221,7 +221,7 @@ fn main() -> std::io::Result<()> {
 				}
 			}
 
-			let command_in = command.clone();
+			rl.add_history_entry(command.clone());
 
 			if let Some(first_char) = command.chars().next() {
 				if first_char != '{' && first_char != '[' {
@@ -279,7 +279,7 @@ fn main() -> std::io::Result<()> {
 											continue;
 										}
 									};
-									command = json::object!{"command": command_name.clone(), "payload": payload, "api": opt.api}.dump();
+									command = json::object!{"command": command_name, "payload": payload, "api": opt.api}.dump();
 								}
 							}
 						}
@@ -305,7 +305,6 @@ fn main() -> std::io::Result<()> {
 						opt.response_time,
 						true,
 					);
-					rl.add_history_entry(command_in);
 				}
 			}
 		}
@@ -359,15 +358,16 @@ fn parse_shortcuts(command: &str) -> &str {
 fn parse_parameters(command: &str, argument: &str, api: u32) -> String {
 	match command {
 		"channel_data" | "channel_attributes" => match argument {
-			"--all" => json::object! {"command": command.clone(), "payload": {"all": true}, "api": api}.dump(),
-			"--hidden" => json::object!{"command": command.clone(), "payload": {"all": true, "hidden": true}, "api": api}.dump(),
-			"--list" => json::object!{"command": command.clone(), "payload": {"all": true, "filter": [""], "hidden": true}, "api": api}.dump(),
-			&_ => json::object! {"command": command.clone(), "payload": {"name": argument}, "api": api}.dump(),
+			"--all" => json::object! {"command": command, "payload": {"all": true}, "api": api}.dump(),
+			"--hidden" => json::object!{"command": command, "payload": {"all": true, "hidden": true}, "api": api}.dump(),
+			"--list" => json::object!{"command": command, "payload": {"all": true, "filter": [""], "hidden": true}, "api": api}.dump(),
+			&_ => json::object! {"command": command, "payload": {"name": argument}, "api": api}.dump(),
 		},
 		"sync" | "sync_json" => match argument {
-			&_ => json::object! {"command": command.clone(), "payload": {"filter": [argument]}, "api": api}.dump(),
+			&_ => json::object! {"command": command, "payload": {"filter": [argument]}, "api": api}.dump(),
 		},
-		&_ => json::object! {"command": command.clone(), "api": api}.dump(),
+		"remove_user" => json::object! {"command": command, "payload": {"username": argument}, "api": api}.dump(),
+		&_ => json::object! {"command": command, "api": api}.dump(),
 	}
 }
 
@@ -515,17 +515,23 @@ fn print_raw(data: &Vec<(String, Vec<f32>)>, cycle_time: f32) {
 	for v in data {
 		if v.1.len() > 1 {
 			let mean = statistical::mean(&v.1[..]);
-			let stdev = statistical::standard_deviation(&v.1[..], None);
 
-			println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
-			Chart::new(
-				term_size.0,
-				term_size.1,
-				0.,
-				data[0].1.len() as f32 * cycle_time,
-			)
-			.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
-			.nice();
+			if mean.is_finite() {
+				let stdev = statistical::standard_deviation(&v.1[..], None);
+
+				println!("{}: mean = {}, stdev = {}", v.0, mean, stdev);
+
+				Chart::new(
+					term_size.0,
+					term_size.1,
+					0.,
+					data[0].1.len() as f32 * cycle_time,
+				)
+				.lineplot(&Shape::Lines(create_xy(&v.1, cycle_time).as_slice()))
+				.nice();
+			} else {
+				println!("{}: only NaNs returned", v.0);
+			}
 		} else {
 			write_stderr(&format!(
 				"{}: not enough data points returned to plot graph",
