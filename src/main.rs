@@ -1,4 +1,3 @@
-use atty::Stream;
 use bone_api::Bone;
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use std::io::*;
@@ -132,10 +131,10 @@ fn main() -> std::io::Result<()> {
 			&mut bone1,
 			&command,
 			!opt.no_pretty,
-			atty::is(Stream::Stdout) && opt.response_time,
+			std::io::stdout().is_terminal() && opt.response_time,
 			false,
 		);
-	} else if !atty::is(Stream::Stdin) {
+	} else if !std::io::stdin().is_terminal() {
 		// pipe mode
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
@@ -145,7 +144,7 @@ fn main() -> std::io::Result<()> {
 			&mut bone1,
 			&command,
 			!opt.no_pretty,
-			atty::is(Stream::Stdout) && opt.response_time,
+			std::io::stdout().is_terminal() && opt.response_time,
 			false,
 		);
 	} else {
