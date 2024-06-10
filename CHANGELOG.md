@@ -1,3 +1,5 @@
+## 1.1.4 (unreleased)
+
 ## 1.1.3 (10.06.2024)
 - Update rustyline to v13.0
 - Replace unmaintained atty crate with standard library implementation
