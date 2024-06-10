@@ -9,30 +9,46 @@ stages:
     - deploy
     - release
 
-.artifacts: &artifacts
-    expire_in: 4 weeks
-    name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}"
-    paths:
-        - bone_shell
-        - bone_shell_arm
-        - bone_shell_x86_64.exe
+cache:
+    - key: "global_cache"
+      paths:
+        - .cargo
+        - target
 
 ## Build ##############################################################################################################
-build:
+build:x86_64:
     stage: build
     cache:
         paths:
             - .cargo
             - target
     artifacts:
-        <<: *artifacts
+        expire_in: 4 weeks
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_x86_64"
+        paths:
+            - bone_shell
+            - LICENSE
     script:
         - cargo build --release
-        - cargo build --release --target=x86_64-pc-windows-gnu
         - cp target/release/bone_shell ./bone_shell
-        - cp target/x86_64-pc-windows-gnu/release/bone_shell.exe ./bone_shell_x86_64.exe
 
-build-arm:
+build:x86_64-pc-windows-gnu:
+    stage: build
+    cache:
+        paths:
+            - .cargo
+            - target
+    artifacts:
+        expire_in: 4 weeks
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_x86_64-pc-windows-gnu"
+        paths:
+            - bone_shell.exe
+            - LICENSE
+    script:
+        - cargo build --release --target=x86_64-pc-windows-gnu
+        - cp target/x86_64-pc-windows-gnu/release/bone_shell.exe ./bone_shell.exe
+
+build:armv7:
     image: docker.bestsens.local/bone/musl-build-image
     stage: build
     cache:
@@ -40,13 +56,17 @@ build-arm:
             - .cargo
             - target
     artifacts:
-        <<: *artifacts
+        expire_in: 4 weeks
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}_armv7"
+        paths:
+            - bone_shell
+            - LICENSE
     script:
         - CC=arm-bemos-linux-musleabihf-gcc cargo build --release --target=armv7-unknown-linux-musleabihf
-        - cp target/armv7-unknown-linux-musleabihf/release/bone_shell ./bone_shell_arm
+        - cp target/armv7-unknown-linux-musleabihf/release/bone_shell ./bone_shell
 
 ## Create persistent archives #########################################################################################
-deploy:
+.deploy: &deploy
     stage: deploy
     when: on_success
     only:
@@ -54,21 +74,60 @@ deploy:
     variables:
         GIT_STRATEGY: none
     script:
-        - echo GE_JOB_ID=$CI_JOB_ID >> generate_executables.env
+        - echo '1'
+
+deploy:x86_64:
+    <<: *deploy
+    script:
+        - echo GE_JOB_ID_x86_64=$CI_JOB_ID >> generate_executables.env
     artifacts:
-        <<: *artifacts
-        expire_in:
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_x86_64"
+        paths:
+            - bone_shell
+            - LICENSE
         reports:
             dotenv: generate_executables.env
     dependencies:
-        - build
+        - build:x86_64
+
+deploy:x86_64-pc-windows-gnu:
+    <<: *deploy
+    script:
+        - echo GE_JOB_ID_x86_64_pc_windows_gnu=$CI_JOB_ID >> generate_executables.env
+    artifacts:
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_x86_64-pc-windows-gnu"
+        paths:
+            - bone_shell.exe
+            - LICENSE
+        reports:
+            dotenv: generate_executables.env
+    dependencies:
+        - build:x86_64-pc-windows-gnu
+
+deploy:armv7:
+    <<: *deploy
+    script:
+        - echo GE_JOB_ID_armv7=$CI_JOB_ID >> generate_executables.env
+    artifacts:
+        name: "${CI_PROJECT_NAME}_${CI_COMMIT_REF_NAME}_armv7"
+        paths:
+            - bone_shell
+            - LICENSE
+        reports:
+            dotenv: generate_executables.env
+    dependencies:
+        - build:armv7
 
 ## Release ############################################################################################################
 release_job:
     stage: release
     image: registry.gitlab.com/gitlab-org/release-cli:latest
     needs:
-        - job: deploy
+        - job: deploy:x86_64
+          artifacts: true
+        - job: deploy:x86_64-pc-windows-gnu
+          artifacts: true
+        - job: deploy:armv7
           artifacts: true
     only:
         - tags
@@ -82,8 +141,8 @@ release_job:
         assets:
             links:
                 - name: "Linux x86_64"
-                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell"
+                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID_x86_64}/artifacts/download"
                 - name: "Linux ARM"
-                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_arm"
+                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID_x86_64_pc_windows_gnu}/artifacts/download"
                 - name: "Windows x86_64"
-                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID}/artifacts/raw/bone_shell_x86_64.exe"
+                  url: "https://gitlab.bestsens.local/bone/bone_shell/-/jobs/${GE_JOB_ID_armv7}/artifacts/download"

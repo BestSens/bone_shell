@@ -1,3 +1,7 @@
+## 1.1.3 (10.06.2024)
+- Update rustyline to v13.0
+- Replace unmaintained atty crate with standard library implementation
+
 ## 1.1.2 (05.03.2024)
 - Add history element even if parsing fails
 - Disable SSL when connecting to localhost

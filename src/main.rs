@@ -1,4 +1,3 @@
-use atty::Stream;
 use bone_api::Bone;
 use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use std::io::*;
@@ -12,6 +11,7 @@ use crossterm::{
 	terminal::size,
 };
 
+use current_platform::CURRENT_PLATFORM;
 use rustyline::{error::ReadlineError, CompletionType, Config, Editor};
 use textplots::{Chart, Plot, Shape};
 
@@ -131,10 +131,10 @@ fn main() -> std::io::Result<()> {
 			&mut bone1,
 			&command,
 			!opt.no_pretty,
-			atty::is(Stream::Stdout) && opt.response_time,
+			std::io::stdout().is_terminal() && opt.response_time,
 			false,
 		);
-	} else if !atty::is(Stream::Stdin) {
+	} else if !std::io::stdin().is_terminal() {
 		// pipe mode
 		let mut command = String::new();
 		stdin().read_line(&mut command).unwrap();
@@ -144,7 +144,7 @@ fn main() -> std::io::Result<()> {
 			&mut bone1,
 			&command,
 			!opt.no_pretty,
-			atty::is(Stream::Stdout) && opt.response_time,
+			std::io::stdout().is_terminal() && opt.response_time,
 			false,
 		);
 	} else {
@@ -161,7 +161,7 @@ fn main() -> std::io::Result<()> {
 			.auto_add_history(false)
 			.build();
 
-		let mut rl = Editor::<()>::with_config(config).unwrap();
+		let mut rl = Editor::<(), _>::with_config(config).unwrap();
 
 		if let Some(path) = history_path.to_str() {
 			match rl.load_history(path) {
@@ -221,7 +221,7 @@ fn main() -> std::io::Result<()> {
 				}
 			}
 
-			rl.add_history_entry(command.clone());
+			let _ = rl.add_history_entry(command.clone());
 
 			if let Some(first_char) = command.chars().next() {
 				if first_char != '{' && first_char != '[' {
@@ -325,24 +325,31 @@ fn get_ipv6_link_local_from_serial(serial: u32) -> String {
 
 	let mut interface = None;
 
-	for itf in network_interfaces.iter() {
-		if let Some(addr) = itf.addr {
-			if addr.ip().is_ipv6() && !addr.ip().is_loopback() {
-				if &addr.ip().to_string()[..6] == "fe80::" {
-					interface = Some(itf.name.clone());
-					break;
+	if !CURRENT_PLATFORM.to_string().contains("windows") {
+		for itf in network_interfaces.iter() {
+			let addrs = &itf.addr;
+			for addr in addrs.iter() {
+				if addr.ip().is_ipv6() && !addr.ip().is_loopback() {
+					if addr.ip().to_string().starts_with("fe80::") {
+						interface = Some(itf.name.clone());
+						break;
+					}
 				}
 			}
 		}
 	}
 
 	let hex = format!("{:04x}", serial);
-	format!(
-		"fe80::b5:b1ff:fe{}:{}%{}",
-		&hex[..2],
-		&hex[2..],
-		interface.unwrap()
-	)
+	if interface.is_some() {
+		format!(
+			"fe80::b5:b1ff:fe{}:{}%{}",
+			&hex[..2],
+			&hex[2..],
+			interface.unwrap()
+		)
+	} else {
+		format!("fe80::b5:b1ff:fe{}:{}", &hex[..2], &hex[2..])
+	}
 }
 
 fn parse_shortcuts(command: &str) -> &str {
