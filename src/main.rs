@@ -3,7 +3,7 @@ use network_interface::{NetworkInterface, NetworkInterfaceConfig};
 use std::io::*;
 use std::path::PathBuf;
 use std::time::Instant;
-use structopt::StructOpt;
+use clap::Parser;
 
 use crossterm::{
 	execute,
@@ -17,47 +17,47 @@ use textplots::{Chart, Plot, Shape};
 
 const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
-#[derive(StructOpt, Debug)]
-#[structopt(name = "basic")]
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
 pub struct Opt {
-	#[structopt(short, long, default_value = "localhost")]
+	#[arg(short, long, default_value = "localhost")]
 	connect: String,
 
-	#[structopt(short, long)]
+	#[arg(short, long)]
 	port: Option<String>,
 
-	#[structopt(long)]
+	#[arg(long)]
 	unencrypted: bool,
 
-	#[structopt(short, long)]
+	#[arg(short, long)]
 	msgpack: bool,
 
-	#[structopt(short, long)]
+	#[arg(short, long)]
 	no_pretty: bool,
 
-	#[structopt(short, long)]
+	#[arg(short, long)]
 	response_time: bool,
 
-	#[structopt(long)]
+	#[arg(long)]
 	version: bool,
 
-	#[structopt(long)]
+	#[arg(long)]
 	username: Option<String>,
 
-	#[structopt(long)]
+	#[arg(long)]
 	password: Option<String>,
 
-	#[structopt(long, default_value = "2")]
+	#[arg(long, default_value = "2")]
 	api: u32,
 
-	#[structopt(long)]
+	#[arg(long)]
 	serial: Option<u32>,
 
 	command: Option<String>,
 }
 
 fn main() -> std::io::Result<()> {
-	let opt = Opt::from_args();
+	let opt = Opt::parse();
 
 	if opt.version {
 		println!("bone_shell version: {}", VERSION);
