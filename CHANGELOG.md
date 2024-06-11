@@ -1,3 +1,5 @@
+## 1.1.5 (unreleased)
+
 ## 1.1.4 (11.06.2024)
 - Replace structopt crate with clap to get really rid of atty
 
