@@ -1,4 +1,7 @@
-## 1.1.4 (unreleased)
+## 1.1.5 (04.02.2025)
+- Update openssl to v0.10.70 to fix CVE-2025-24898
+
+## 1.1.4 (11.06.2024)
 - Replace structopt crate with clap to get really rid of atty
 
 ## 1.1.3 (10.06.2024)

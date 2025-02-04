@@ -140,11 +140,6 @@ impl Bone {
 		if self.use_ssl {
 			let mut ssl_ctx_builder = SslConnector::builder(SslMethod::tls()).unwrap();
 
-			#[cfg(openssl111)]
-			ssl_ctx_builder
-				.set_ciphersuites("TLS_AES_256_GCM_SHA384:TLS_AES_128_GCM_SHA256")
-				.unwrap();
-
 			ssl_ctx_builder.set_verify(SslVerifyMode::empty());
 
 			let ssl_ctx = ssl_ctx_builder.build();
