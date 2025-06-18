@@ -1,3 +1,6 @@
+## 1.1.6 (18.06.2025)
+- Update openssl to v0.10.73 to fix known vulnerability
+
 ## 1.1.5 (04.02.2025)
 - Update openssl to v0.10.70 to fix CVE-2025-24898
 
