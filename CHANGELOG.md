@@ -1,3 +1,5 @@
+## 1.1.7 (unreleased)
+
 ## 1.1.6 (18.06.2025)
 - Update openssl to v0.10.73 to fix known vulnerability
 

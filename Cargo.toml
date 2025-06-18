@@ -1,6 +1,6 @@
 [package]
 name = "bone_shell"
-version = "1.1.6"
+version = "1.1.7"
 authors = ["Jan Schöppach"]
 edition = "2021"
 
